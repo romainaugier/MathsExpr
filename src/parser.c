@@ -140,5 +140,7 @@ uint32_t mathsexpr_parse(const char* expression,
     printf("%s\n", expression);
     mathsexpr_debug_tokens(tokens);
 
+    vector_free(tokens);
+
     return 0;
 }
