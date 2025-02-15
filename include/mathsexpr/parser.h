@@ -8,7 +8,6 @@
 #define __MATHSEXPR_PARSER
 
 #include "mathsexpr/mathsexpr.h"
-#include "mathsexpr/ast.h"
 
 #include "libromano/vector.h"
 
@@ -17,7 +16,8 @@ MATHSEXPR_CPP_ENTER
 typedef enum {
     ParserTokenType_Literal,
     ParserTokenType_Variable,
-    ParserTokenType_Operator,
+    ParserTokenType_BinOperator,
+    ParserTokenType_UnOperator,
     ParserTokenType_LParen,
     ParserTokenType_RParen,
 } ParserTokenType_;
@@ -28,8 +28,18 @@ typedef struct {
     uint32_t token_type;
 } ParserToken;
 
-MATHSEXPR_API uint32_t mathsexpr_parse(const char* expression,
-                                       uint32_t expression_size);
+MATHSEXPR_API uint32_t mathsexpr_parser_parse(const char* expression,
+                                              uint32_t expression_size,
+                                              Vector* tokens);
+
+MATHSEXPR_API uint32_t mathsexpr_parser_get_operator_precedence(char operator);
+
+MATHSEXPR_API bool mathsexpr_is_operator_right_associative(char operator);
+
+MATHSEXPR_API bool mathsexpr_parser_infix_to_postfix(Vector* infix_tokens,
+                                                     Vector* postfix_tokens);
+
+MATHSEXPR_API void mathsexpr_parser_debug_tokens(Vector* tokens);
 
 MATHSEXPR_CPP_END
 

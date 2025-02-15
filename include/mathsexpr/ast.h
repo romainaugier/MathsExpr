@@ -7,7 +7,9 @@
 #if !defined(__MATHSEXPR_AST)
 #define __MATHSEXPR_AST
 
-#include "mathsexpr/mathsexpr.h"
+#include "mathsexpr/parser.h"
+
+#include "libromano/vector.h"
 
 MATHSEXPR_CPP_ENTER
 
@@ -19,14 +21,17 @@ typedef enum {
 } ASTNodeType;
 
 typedef enum {
-    ASTOpType_Add,
-    ASTOpType_Sub,
-    ASTOpType_Mul,
-    ASTOpType_Div,
-    ASTOpType_Neg,
-    ASTOpType_Mod,
-    ASTOpType_Pow,
-} ASTOpType;
+    ASTUnOPType_Neg,
+} ASTUnOPType;
+
+typedef enum {
+    ASTBinOPType_Add,
+    ASTBinOPType_Sub,
+    ASTBinOPType_Mul,
+    ASTBinOPType_Div,
+    ASTBinOPType_Mod,
+    ASTBinOPType_Pow,
+} ASTBinOPType;
 
 typedef struct {
     ASTNodeType type;
@@ -44,20 +49,49 @@ typedef struct {
 
 typedef struct {
     ASTNode base;
-    ASTOpType op;
+    ASTBinOPType op;
     ASTNode* left;
     ASTNode* right;
 } ASTBinOP;
 
 typedef struct {
     ASTNode base;
-    ASTOpType op;
+    ASTUnOPType op;
     ASTNode* operand;
 } ASTUnOP;
 
 #define AST_CAST(type, node) ((type*)((node)->type == ASTNodeType_##type ? node : NULL))
 
-MATHSEXPR_API uint32_t mathsexpr_parse(const char* expression, uint32_t expression_size);
+typedef struct
+{
+    void* ptr;
+    size_t capacity;
+    size_t offset;
+} ASTArena;
+
+typedef struct 
+{
+    ASTArena nodes;
+    ASTNode* root;
+} AST;
+
+MATHSEXPR_API AST* mathsexpr_ast_new();
+
+MATHSEXPR_API ASTNode* mathsexpr_ast_new_literal(AST* ast, double value);
+
+MATHSEXPR_API ASTNode* mathsexpr_ast_new_variable(AST* ast, char name);
+
+MATHSEXPR_API ASTNode* mathsexpr_ast_new_binop(AST* ast, ASTBinOPType op, ASTNode* left, ASTNode* right);
+
+MATHSEXPR_API ASTNode* mathsexpr_ast_new_unop(AST* ast, ASTUnOPType op, ASTNode* operand);
+
+MATHSEXPR_API bool mathsexpr_ast_from_infix_parser_tokens(AST* ast, Vector* tokens);
+
+MATHSEXPR_API bool mathsexpr_ast_from_postfix_parser_tokens(AST* ast, Vector* tokens);
+
+MATHSEXPR_API void mathsexpr_ast_print(AST* ast); 
+
+MATHSEXPR_API void mathsexpr_ast_destroy(AST* ast);
 
 MATHSEXPR_CPP_END
 
