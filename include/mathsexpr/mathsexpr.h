@@ -39,18 +39,11 @@
 #define MATHSEXPR_VERSION_STR MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_MAJOR)"." \
                               MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_MINOR)"." \
                               MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_PATCH)"." \
-                              MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_REVISION)
 
-#if defined(__cplusplus)
-#include <cstddef>
-#include <cstdint>
-#include <cassert>
-#else
 #include <stddef.h>
 #include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
-#endif /* defined(__cplusplus) */
 
 #if INTPTR_MAX == INT64_MAX || defined(__x86_64__)
 #define MATHSEXPR_X64
@@ -121,11 +114,7 @@
 #define CONCAT_(prefix, suffix)     prefix##suffix
 #define CONCAT(prefix, suffix)      CONCAT_(prefix, suffix)
 
-#if defined(__cplusplus)
-#define MATHSEXPR_ASSERT(expr, message) if(!(expr)) { std::fprintf(stderr, "Assertion failed in file %s at line %d: %s", __FILE__, __LINE__, message); std::abort(); }
-#else
 #define MATHSEXPR_ASSERT(expr, message) if(!(expr)) { fprintf(stderr, "Assertion failed in file %s at line %d: %s", __FILE__, __LINE__, message); abort(); }
-#endif /* defined(__cplusplus) */
 
 #define MATHSEXPR_STATIC_ASSERT(expr)        \
     struct CONCAT(__outscope_assert_, __COUNTER__)      \
@@ -136,20 +125,7 @@
                                                         \
     } CONCAT(__outscope_assert_, __COUNTER__)
 
-#if defined(__cplusplus)
-#define MATHSEXPR_NOT_IMPLEMENTED std::fprintf(stderr, "Function " MATHSEXPR_FUNCTION " not implemented"); std::exit(1);
-#else
 #define MATHSEXPR_NOT_IMPLEMENTED fprintf(stderr, "Function " MATHSEXPR_FUNCTION " not implemented"); exit(1);
-#endif /* defined(__cplusplus) */
-
-#if defined(__cplusplus)
-#define MATHSEXPR_NON_COPYABLE(__class__)        \
-    __class__(const __class__ &) = delete;                  \
-    const __class__ &operator=(const __class__ &) = delete; 
-#define MATHSEXPR_NON_MOVABLE(__class__)         \
-    __class__(__class__ &&) = delete;                       \
-    void operator=(__class__ &&) = delete;
-#endif /* defined(__cplusplus) */
 
 #if defined(MATHSEXPR_MSVC)
 #define MATHSEXPR_PACKED_STRUCT(__struct__) __pragma(pack(push, 1)) __struct__ __pragma(pack(pop))
@@ -184,15 +160,6 @@
 #define MATHSEXPR_NAMESPACE_BEGIN namespace mathsexpr {
 #define MATHSEXPR_NAMESPACE_END }
 
-#if defined(__cplusplus)
-#define MATHSEXPR_ATEXIT_REGISTER(func, exit)                            \
-        int res_##func = std::atexit(func);                                         \
-        if(res_##func != 0)                                                         \
-        {                                                                           \
-            std::fprintf(stderr, "Cannot register function \""#func"\" in atexit"); \
-            if(exit) return std::exit(1);                                           \
-        }                                                                           
-#else
 #define MATHSEXPR_ATEXIT_REGISTER(func, exit)                            \
         int res_##func = atexit(func);                                              \
         if(res_##func != 0)                                                         \
@@ -200,6 +167,5 @@
             fprintf(stderr, "Cannot register function \""#func"\" in atexit");      \
             if(exit) return exit(1);                                                \
         }                                                                           
-#endif /* defined(__cplusplus) */
 
 #endif /* !defined(__MATHSEXPR) */
