@@ -8,85 +8,40 @@
 
 #include <string.h>
 
-#define AST_ARENA_GROWTH_RATE 1.6180339887f
-
-void mathsexpr_ast_arena_init(ASTArena* arena, const size_t size)
-{
-    arena->ptr = malloc(size);
-    arena->offset = 0;
-    arena->capacity = size;
-}
-
-MATHSEXPR_FORCE_INLINE bool mathsexpr_ast_arena_check_resize(ASTArena* arena, 
-                                                             const size_t new_size)
-{
-    return (arena->offset + new_size) >= arena->capacity;
-}
-
-void mathsexpr_ast_arena_resize(ASTArena* arena)
-{
-    const size_t new_capacity = (size_t)((float)arena->capacity * AST_ARENA_GROWTH_RATE);
-
-    void* new_ptr = realloc(arena->ptr, new_capacity);
-
-    MATHSEXPR_ASSERT(new_ptr != NULL, "Error during ast arena reallocation");
-
-    arena->ptr = new_ptr;
-    arena->capacity = new_capacity;
-}
-
-void* mathsexpr_ast_arena_push(ASTArena* arena, void* data, const size_t data_size)
-{
-    void* data_address = (char*)arena->ptr + arena->offset;
-    memcpy(data_address, data, data_size);
-
-    arena->offset += data_size;
-
-    return data_address;
-}
-
-void mathsexpr_ast_arena_destroy(ASTArena* arena)
-{
-    free(arena->ptr);
-    arena->ptr = NULL;
-    arena->offset = 0;
-    arena->capacity = 0;
-}
-
 AST* mathsexpr_ast_new()
 {
     AST* new_ast = (AST*)malloc(sizeof(AST));
-    mathsexpr_ast_arena_init(&new_ast->nodes, 4096);
+    mathsexpr_arena_init(&new_ast->nodes, 4096);
 
     return new_ast;
 }
 
-ASTNode* mathsexpr_ast_new_literal(AST* ast, double value)
+ASTNode* mathsexpr_ast_new_literal(AST* ast, float value)
 {
     ASTLiteral lit = { ASTNodeType_ASTLiteral, value };
 
-    return (ASTNode*)mathsexpr_ast_arena_push(&ast->nodes, &lit, sizeof(ASTLiteral));
+    return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &lit, sizeof(ASTLiteral));
 }
 
 ASTNode* mathsexpr_ast_new_variable(AST* ast, char name)
 {
     ASTVariable var = { ASTNodeType_ASTVariable, name };
 
-    return (ASTNode*)mathsexpr_ast_arena_push(&ast->nodes, &var, sizeof(ASTVariable));
+    return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &var, sizeof(ASTVariable));
 }
 
 ASTNode* mathsexpr_ast_new_binop(AST* ast, ASTBinOPType op, ASTNode* left, ASTNode* right)
 {
     ASTBinOP binop = { ASTNodeType_ASTBinOP, op, left, right };
 
-    return (ASTNode*)mathsexpr_ast_arena_push(&ast->nodes, &binop, sizeof(ASTBinOP));
+    return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &binop, sizeof(ASTBinOP));
 }
 
 ASTNode* mathsexpr_ast_new_unop(AST* ast, ASTUnOPType op, ASTNode* operand)
 {
     ASTUnOP unop = { ASTNodeType_ASTUnOP, op, operand };
 
-    return (ASTNode*)mathsexpr_ast_arena_push(&ast->nodes, &unop, sizeof(ASTUnOP));
+    return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &unop, sizeof(ASTUnOP));
 }
 
 ASTBinOPType mathsexpr_ast_token_op_to_binop(const ParserToken* token)
@@ -146,7 +101,7 @@ bool mathsexpr_ast_from_infix_parser_tokens(AST* ast, Vector* tokens)
         {
             case ParserTokenType_Literal:
             {
-                ASTNode* node = mathsexpr_ast_new_literal(ast, strtod(token->start, NULL));
+                ASTNode* node = mathsexpr_ast_new_literal(ast, strtof(token->start, NULL));
                 stack_push(nodes_stack, node);
                 break;
             }
@@ -316,6 +271,6 @@ void mathsexpr_ast_print(AST* ast)
 
 void mathsexpr_ast_destroy(AST* ast)
 {
-    mathsexpr_ast_arena_destroy(&ast->nodes);
+    mathsexpr_arena_destroy(&ast->nodes);
     free(ast);
 }

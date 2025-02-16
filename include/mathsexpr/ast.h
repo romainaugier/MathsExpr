@@ -8,6 +8,7 @@
 #define __MATHSEXPR_AST
 
 #include "mathsexpr/parser.h"
+#include "mathsexpr/arena.h"
 
 #include "libromano/vector.h"
 
@@ -39,7 +40,7 @@ typedef struct {
 
 typedef struct {
     ASTNode base;
-    double value;
+    float value;
 } ASTLiteral;
 
 typedef struct {
@@ -60,24 +61,17 @@ typedef struct {
     ASTNode* operand;
 } ASTUnOP;
 
-#define AST_CAST(type, node) ((type*)((node)->type == ASTNodeType_##type ? node : NULL))
-
-typedef struct
-{
-    void* ptr;
-    size_t capacity;
-    size_t offset;
-} ASTArena;
+#define AST_CAST(__type__, __node__) ((__type__*)((__node__)->type == ASTNodeType_##__type__ ? __node__ : NULL))
 
 typedef struct 
 {
-    ASTArena nodes;
+    Arena nodes;
     ASTNode* root;
 } AST;
 
 MATHSEXPR_API AST* mathsexpr_ast_new();
 
-MATHSEXPR_API ASTNode* mathsexpr_ast_new_literal(AST* ast, double value);
+MATHSEXPR_API ASTNode* mathsexpr_ast_new_literal(AST* ast, float value);
 
 MATHSEXPR_API ASTNode* mathsexpr_ast_new_variable(AST* ast, char name);
 

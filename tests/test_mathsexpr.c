@@ -3,7 +3,7 @@
 // All rights reserved. 
 
 #include "mathsexpr/parser.h"
-#include "mathsexpr/ast.h"
+#include "mathsexpr/ssa.h"
 
 #include "libromano/logger.h"
 
@@ -63,6 +63,24 @@ int main(void)
 
         mathsexpr_ast_print(expr_ast);
 
+        printf("Expr%d ssa\n", i + 1);
+        SSA* expr_ssa = mathsexpr_ssa_new();
+
+        if(!mathsexpr_ssa_from_ast(expr_ssa, expr_ast))
+        {
+            logger_log_error("Error while building SSA for expression: %s", exprs[i]);
+
+            mathsexpr_ssa_destroy(expr_ssa);
+            mathsexpr_ast_destroy(expr_ast);
+            vector_free(expr_tokens);
+            logger_release();
+
+            return 1;
+        }
+
+        mathsexpr_ssa_print(expr_ssa);
+
+        mathsexpr_ssa_destroy(expr_ssa);
         mathsexpr_ast_destroy(expr_ast);
         vector_free(expr_tokens);
     }

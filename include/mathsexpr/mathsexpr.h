@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #if INTPTR_MAX == INT64_MAX || defined(__x86_64__)
 #define MATHSEXPR_X64
