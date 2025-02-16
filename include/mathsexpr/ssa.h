@@ -12,10 +12,10 @@
 MATHSEXPR_CPP_ENTER
 
 typedef enum {
-    SSAInstructionType_SSALiteral,
-    SSAInstructionType_SSAVariable,
-    SSAInstructionType_SSABinOP,
-    SSAInstructionType_SSAUnOP,
+    SSAInstructionType_SSALiteral = 1,
+    SSAInstructionType_SSAVariable = 2,
+    SSAInstructionType_SSABinOP = 3,
+    SSAInstructionType_SSAUnOP = 4,
 } SSAInstructionType;
 
 typedef enum {
@@ -62,7 +62,7 @@ typedef struct {
     uint32_t destination;
 } SSAUnOP;
 
-#define SSA_CAST(__type__, __instruction__) ((__type__*)((__instruction__)->type == SSAInstructionType_##__type__ ? instruction : NULL))
+#define SSA_CAST(__type__, __instruction__) ((__type__*)((__instruction__)->type == SSAInstructionType_##__type__ ? __instruction__ : NULL))
 
 typedef struct
 {
@@ -93,6 +93,8 @@ MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_unop(SSA* ssa,
                                                      uint32_t destination);
 
 MATHSEXPR_API bool mathsexpr_ssa_from_ast(SSA* ssa, AST* ast);
+
+MATHSEXPR_API bool mathsexpr_ssa_optimize(SSA* ssa);
 
 MATHSEXPR_API void mathsexpr_ssa_print(SSA* ssa);
 

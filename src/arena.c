@@ -5,6 +5,7 @@
 #include "mathsexpr/arena.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 void mathsexpr_arena_init(Arena* arena, const size_t size)
 {
@@ -13,8 +14,8 @@ void mathsexpr_arena_init(Arena* arena, const size_t size)
     arena->capacity = size;
 }
 
-MATHSEXPR_FORCE_INLINE bool mathsexpr__arena_check_resize(Arena* arena, 
-                                                             const size_t new_size)
+MATHSEXPR_FORCE_INLINE bool mathsexpr_arena_check_resize(Arena* arena, 
+                                                         const size_t new_size)
 {
     return (arena->offset + new_size) >= arena->capacity;
 }
@@ -25,7 +26,7 @@ void mathsexpr_arena_resize(Arena* arena)
 
     void* new_ptr = realloc(arena->ptr, new_capacity);
 
-    MATHSEXPR_ASSERT(new_ptr != NULL, "Error during  arena reallocation");
+    MATHSEXPR_ASSERT(new_ptr != NULL, "Error during arena reallocation");
 
     arena->ptr = new_ptr;
     arena->capacity = new_capacity;
@@ -33,7 +34,12 @@ void mathsexpr_arena_resize(Arena* arena)
 
 void* mathsexpr_arena_push(Arena* arena, void* data, const size_t data_size)
 {
-    void* data_address = (char*)arena->ptr + arena->offset;
+    if(mathsexpr_arena_check_resize(arena, data_size))
+    {
+        mathsexpr_arena_resize(arena);
+    }
+
+    void* data_address = (void*)((char*)arena->ptr + arena->offset);
     memcpy(data_address, data, data_size);
 
     arena->offset += data_size;

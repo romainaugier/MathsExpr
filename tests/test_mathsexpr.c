@@ -80,6 +80,11 @@ int main(void)
 
         mathsexpr_ssa_print(expr_ssa);
 
+        mathsexpr_ssa_optimize(expr_ssa);
+
+        printf("Expr%d optimized ssa\n", i + 1);
+        mathsexpr_ssa_print(expr_ssa);
+
         mathsexpr_ssa_destroy(expr_ssa);
         mathsexpr_ast_destroy(expr_ast);
         vector_free(expr_tokens);

@@ -4,6 +4,11 @@
 
 #include "mathsexpr/ssa.h"
 
+#include "libromano/math/common32.h"
+#include "libromano/logger.h"
+
+#include <string.h>
+
 SSA* mathsexpr_ssa_new()
 {
     SSA* new_ssa = (SSA*)malloc(sizeof(SSA));
@@ -212,11 +217,121 @@ uint32_t ssa_get_destination(SSAInstruction* instruction)
     }
 }
 
+bool ssa_optimize_constants_folding(SSA* ssa)
+{
+    while(true)
+    {
+        size_t offset = 0;
+        bool any_folding = false;
+        uint32_t i = 0;
+        
+        while(i < ssa->num_instructions)
+        {
+            SSAInstruction* instruction = mathsexpr_arena_at(&ssa->instructions, offset);
+
+            switch(instruction->type)
+            {
+                case SSAInstructionType_SSALiteral:
+                    offset += sizeof(SSALiteral);
+                    i++;
+                    break;
+                case SSAInstructionType_SSAVariable:
+                    offset += sizeof(SSAVariable);
+                    i++;
+                    break;
+                case SSAInstructionType_SSAUnOP:
+                    offset += sizeof(SSAUnOP);
+                    i++;
+                    break;
+                case SSAInstructionType_SSABinOP:
+                {
+                    SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+                    MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
+
+                    if(binop->left->type == SSAInstructionType_SSALiteral && 
+                       binop->right->type == SSAInstructionType_SSALiteral)
+                    {
+                        SSALiteral* lit_a = SSA_CAST(SSALiteral, binop->left);
+                        MATHSEXPR_ASSERT(lit_a != NULL, "Wrong type casting, should be SSALiteral");
+
+                        SSALiteral* lit_b = SSA_CAST(SSALiteral, binop->right);
+                        MATHSEXPR_ASSERT(lit_b != NULL, "Wrong type casting, should be SSALiteral");
+
+                        SSABinOPType op = binop->op;
+                        uint32_t destination = binop->destination;
+
+                        memset(instruction, 0, sizeof(SSABinOP));
+                        instruction->type = SSAInstructionType_SSALiteral;
+
+                        SSALiteral* result = SSA_CAST(SSALiteral, instruction);
+                        result->destination = destination;
+
+                        switch(op)
+                        {
+                            case SSABinOPType_Add:
+                                result->value = lit_a->value + lit_b->value;
+                                break;
+                            case SSABinOPType_Sub:
+                                result->value = lit_a->value - lit_b->value;
+                                break;
+                            case SSABinOPType_Mul:
+                                result->value = lit_a->value * lit_b->value;
+                                break;
+                            case SSABinOPType_Div:
+                                result->value = lit_a->value / lit_b->value;
+                                break;
+                            case SSABinOPType_Mod:
+                                result->value = mathf_fmod(lit_a->value, lit_b->value);
+                                break;
+                            case SSABinOPType_Pow:
+                                result->value = mathf_pow(lit_a->value, lit_b->value);
+                                break;
+                            default:
+                                result->value = 0.0f;
+                                break;
+                        }
+
+                        any_folding = true;
+                    }
+
+                    offset += sizeof(SSABinOP);
+                    i++;
+
+                    break;
+                }
+                default:
+                    /* We are in a zeroed zone after a binop has been constant folded */
+                    offset += 1;
+                    break;
+            }
+        }
+
+        if(!any_folding)
+        {
+            break;
+        }
+    }
+
+    return true;
+}
+
+bool mathsexpr_ssa_optimize(SSA* ssa)
+{
+    if(!ssa_optimize_constants_folding(ssa))
+    {
+        logger_log_error("Error during constant folding optimization");
+        return false;
+    }
+
+    return true;
+}
+
 void mathsexpr_ssa_print(SSA* ssa)
 {
     size_t offset = 0;
+    uint32_t i = 0;
 
-    for(uint32_t i = 0; i < ssa->num_instructions; i++)
+    while(i < ssa->num_instructions)
     {
         SSAInstruction* instruction = mathsexpr_arena_at(&ssa->instructions, offset);
 
@@ -226,8 +341,9 @@ void mathsexpr_ssa_print(SSA* ssa)
             {
                 SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
                 MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting");
-                printf("t%u = %f\n", lit->destination, lit->value);
+                printf("t%u = %.3f\n", lit->destination, lit->value);
                 offset += sizeof(SSALiteral);
+                i++;
                 break;
             }
             case SSAInstructionType_SSAVariable:
@@ -236,6 +352,7 @@ void mathsexpr_ssa_print(SSA* ssa)
                 MATHSEXPR_ASSERT(var != NULL, "Wrong type casting");
                 printf("t%u = %c\n", var->destination, var->name);
                 offset += sizeof(SSAVariable);
+                i++;
                 break;
             }
             case SSAInstructionType_SSABinOP:
@@ -247,6 +364,7 @@ void mathsexpr_ssa_print(SSA* ssa)
                                              ssa_binop_type_as_string(binop->op),
                                              ssa_get_destination(binop->right));
                 offset += sizeof(SSABinOP);
+                i++;
                 break;
             }
             case SSAInstructionType_SSAUnOP:
@@ -255,9 +373,12 @@ void mathsexpr_ssa_print(SSA* ssa)
                 MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting");
                 printf("t%u = %st%u\n", ssa_unop_type_as_string(unop->op), ssa_get_destination(unop->operand));
                 offset += sizeof(SSAUnOP);
+                i++;
                 break;
             }
             default:
+                /* We are in a zeroed zone after a binop has been constant folded */
+                offset += 1;
                 break;
         }
     }
