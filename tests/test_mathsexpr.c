@@ -7,6 +7,9 @@
 
 #include "libromano/logger.h"
 
+#define ROMANO_ENABLE_PROFILING
+#include "libromano/profiling.h"
+
 #include <string.h>
 
 #define NUM_EXPRS 6

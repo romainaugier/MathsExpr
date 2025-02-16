@@ -64,6 +64,8 @@ typedef struct {
 
 #define SSA_CAST(__type__, __instruction__) ((__type__*)((__instruction__)->type == SSAInstructionType_##__type__ ? __instruction__ : NULL))
 
+typedef uint32_t SSAIterator;
+
 typedef struct
 {
     Arena instructions;
@@ -91,6 +93,12 @@ MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_unop(SSA* ssa,
                                                      SSAUnOPType op,
                                                      SSAInstruction* operand,
                                                      uint32_t destination);
+
+MATHSEXPR_API SSAIterator mathsexpr_ssa_iterator_new();
+
+MATHSEXPR_API bool mathsexpr_ssa_next_instruction(SSA* ssa, 
+                                                  SSAIterator* it,
+                                                  SSAInstruction** instruction);
 
 MATHSEXPR_API bool mathsexpr_ssa_from_ast(SSA* ssa, AST* ast);
 

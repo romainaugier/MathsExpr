@@ -6,6 +6,7 @@
 
 #include "libromano/math/common32.h"
 #include "libromano/logger.h"
+#include "libromano/hashmap.h"
 
 #include <string.h>
 
@@ -65,6 +66,54 @@ SSAInstruction* mathsexpr_ssa_new_unop(SSA* ssa,
     ssa->num_instructions++;
 
     return (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions, &unop, sizeof(SSAUnOP));
+}
+
+SSAIterator mathsexpr_ssa_iterator_new()
+{
+    return 0;
+}
+
+bool mathsexpr_ssa_next_instruction(SSA* ssa, 
+                                    SSAIterator* it,
+                                    SSAInstruction** instruction)
+{
+    if((size_t)(*it) >= ssa->instructions.offset)
+    {
+        return false;
+    } 
+
+    while(((char*)mathsexpr_arena_at(&ssa->instructions, (size_t)(*it))) == 0)
+    {
+        *it += 1;
+
+        if((size_t)(*it) >= ssa->instructions.offset)
+        {
+            return false;
+        } 
+    }
+
+    *instruction = mathsexpr_arena_at(&ssa->instructions, (size_t)(*it));
+
+    switch((*instruction)->type)
+    {
+        case SSAInstructionType_SSALiteral:
+            *it += sizeof(SSALiteral);
+            break;
+        case SSAInstructionType_SSAVariable:
+            *it += sizeof(SSAVariable);
+            break;
+        case SSAInstructionType_SSABinOP:
+            *it += sizeof(SSABinOP);
+            break;
+        case SSAInstructionType_SSAUnOP:
+            *it += sizeof(SSAUnOP);
+            break;
+        default:
+            *it += 1;
+            break;
+    }
+
+    return true;
 }
 
 SSABinOPType ast_binop_to_ssa_binop(ASTBinOPType type)
@@ -221,28 +270,15 @@ bool ssa_optimize_constants_folding(SSA* ssa)
 {
     while(true)
     {
-        size_t offset = 0;
         bool any_folding = false;
-        uint32_t i = 0;
-        
-        while(i < ssa->num_instructions)
-        {
-            SSAInstruction* instruction = mathsexpr_arena_at(&ssa->instructions, offset);
 
+        SSAInstruction* instruction;
+        SSAIterator it = mathsexpr_ssa_iterator_new();
+
+        while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
+        {
             switch(instruction->type)
             {
-                case SSAInstructionType_SSALiteral:
-                    offset += sizeof(SSALiteral);
-                    i++;
-                    break;
-                case SSAInstructionType_SSAVariable:
-                    offset += sizeof(SSAVariable);
-                    i++;
-                    break;
-                case SSAInstructionType_SSAUnOP:
-                    offset += sizeof(SSAUnOP);
-                    i++;
-                    break;
                 case SSAInstructionType_SSABinOP:
                 {
                     SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
@@ -294,15 +330,8 @@ bool ssa_optimize_constants_folding(SSA* ssa)
                         any_folding = true;
                     }
 
-                    offset += sizeof(SSABinOP);
-                    i++;
-
                     break;
                 }
-                default:
-                    /* We are in a zeroed zone after a binop has been constant folded */
-                    offset += 1;
-                    break;
             }
         }
 
@@ -315,6 +344,103 @@ bool ssa_optimize_constants_folding(SSA* ssa)
     return true;
 }
 
+#define INVALID_DESTINATION 0xFFFFFFFF
+
+bool ssa_optimize_dead_code_elimination(SSA* ssa)
+{
+    const int value = 0;
+    HashMap* destinations = hashmap_new(ssa->num_instructions);
+
+    SSAInstruction* instruction;
+    SSAIterator it = mathsexpr_ssa_iterator_new();
+
+    while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
+    {
+        switch(instruction->type)
+        {
+            case SSAInstructionType_SSABinOP:
+            {
+                SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+
+                uint32_t left_destination = ssa_get_destination(binop->left);
+                uint32_t right_destination = ssa_get_destination(binop->right);
+
+                hashmap_insert(destinations, 
+                               (const void*)&left_destination,
+                               sizeof(uint32_t),
+                               (void*)&value,
+                               sizeof(int));
+
+                hashmap_insert(destinations, 
+                               (const void*)&right_destination,
+                               sizeof(uint32_t),
+                               (void*)&value,
+                               sizeof(int));
+
+                break;
+            }
+            case SSAInstructionType_SSAUnOP:
+            {
+                SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+
+                uint32_t destination = ssa_get_destination(unop->operand);
+
+                hashmap_insert(destinations, 
+                               (const void*)&destination,
+                               sizeof(uint32_t),
+                               (void*)&value,
+                               sizeof(int));
+
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    instruction = NULL;
+    it = mathsexpr_ssa_iterator_new();
+
+    while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
+    {
+        switch(instruction->type)
+        {
+            case SSAInstructionType_SSALiteral:
+            {
+                const uint32_t destination = ssa_get_destination(instruction);
+                void* found = hashmap_get(destinations, &destination, sizeof(uint32_t), NULL);
+
+                if(found == NULL && destination != 0)
+                {
+                    memset(instruction, 0, sizeof(SSALiteral));
+                    ssa->num_instructions--;
+                }
+
+                break;
+            }
+            case SSAInstructionType_SSAVariable:
+            {
+                const uint32_t destination = ssa_get_destination(instruction);
+                void* found = hashmap_get(destinations, &destination, sizeof(uint32_t), NULL);
+
+                if(found == NULL && destination != 0)
+                {
+                    memset(instruction, 0, sizeof(SSAVariable));
+                    ssa->num_instructions--;
+                }
+
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    hashmap_free(destinations);
+
+    return true;
+}
+
 bool mathsexpr_ssa_optimize(SSA* ssa)
 {
     if(!ssa_optimize_constants_folding(ssa))
@@ -323,18 +449,22 @@ bool mathsexpr_ssa_optimize(SSA* ssa)
         return false;
     }
 
+    if(!ssa_optimize_dead_code_elimination(ssa))
+    {
+        logger_log_error("Error during dead code elimination optimization");
+        return false;
+    }
+
     return true;
 }
 
 void mathsexpr_ssa_print(SSA* ssa)
 {
-    size_t offset = 0;
-    uint32_t i = 0;
+    SSAInstruction* instruction;
+    SSAIterator it = mathsexpr_ssa_iterator_new();
 
-    while(i < ssa->num_instructions)
+    while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
     {
-        SSAInstruction* instruction = mathsexpr_arena_at(&ssa->instructions, offset);
-
         switch(instruction->type)
         {
             case SSAInstructionType_SSALiteral:
@@ -342,8 +472,6 @@ void mathsexpr_ssa_print(SSA* ssa)
                 SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
                 MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting");
                 printf("t%u = %.3f\n", lit->destination, lit->value);
-                offset += sizeof(SSALiteral);
-                i++;
                 break;
             }
             case SSAInstructionType_SSAVariable:
@@ -351,8 +479,6 @@ void mathsexpr_ssa_print(SSA* ssa)
                 SSAVariable* var = SSA_CAST(SSAVariable, instruction);
                 MATHSEXPR_ASSERT(var != NULL, "Wrong type casting");
                 printf("t%u = %c\n", var->destination, var->name);
-                offset += sizeof(SSAVariable);
-                i++;
                 break;
             }
             case SSAInstructionType_SSABinOP:
@@ -363,8 +489,6 @@ void mathsexpr_ssa_print(SSA* ssa)
                                              ssa_get_destination(binop->left),
                                              ssa_binop_type_as_string(binop->op),
                                              ssa_get_destination(binop->right));
-                offset += sizeof(SSABinOP);
-                i++;
                 break;
             }
             case SSAInstructionType_SSAUnOP:
@@ -372,13 +496,9 @@ void mathsexpr_ssa_print(SSA* ssa)
                 SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
                 MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting");
                 printf("t%u = %st%u\n", ssa_unop_type_as_string(unop->op), ssa_get_destination(unop->operand));
-                offset += sizeof(SSAUnOP);
-                i++;
                 break;
             }
             default:
-                /* We are in a zeroed zone after a binop has been constant folded */
-                offset += 1;
                 break;
         }
     }
