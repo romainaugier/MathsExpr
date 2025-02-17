@@ -12,7 +12,7 @@
 
 #include <string.h>
 
-#define NUM_EXPRS 6
+#define NUM_EXPRS 7
 
 int main(void)
 {
@@ -25,6 +25,7 @@ int main(void)
         "9 + 24 / (7 - 3)",
         "(0.5 + 18x * (-34 - 4x)) ^ 0.5",
         "-3 + 6",
+        "(18x) * a + 5.0 - b / (18x)"
     };
 
     for(uint32_t i = 0; i < NUM_EXPRS; i++)

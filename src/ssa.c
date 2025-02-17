@@ -442,87 +442,100 @@ uint32_t canonicalize_rhs(SSAInstruction* instruction)
 
 bool ssa_optimize_common_subexpression_elimination(SSA* ssa)
 {
-    HashMap* expressions = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
-    HashMap* replacements = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
-
-    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    while(true)
     {
-        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+        bool any_elimination = false;
 
-        size_t rhs = canonicalize_rhs(instruction);
-
-        void* found = hashmap_get(expressions, &rhs, sizeof(size_t), NULL);
-
-        if(found == NULL)
-        {
-            hashmap_insert(expressions, &rhs, sizeof(size_t), &instruction, sizeof(SSAInstruction*));
-            continue;
-        }
-
-        hashmap_insert(replacements, &instruction, sizeof(SSAInstruction*), found, sizeof(SSAInstruction*));
-    }
-
-    HashMapIterator it = 0;
-    void* key = NULL;
-    uint32_t key_size = 0;
-    void* value = NULL;
-    uint32_t value_size = 0;
-
-    while(hashmap_iterate(replacements, &it, &key, &key_size, &value, &value_size))
-    {
-        SSAInstruction* to_replace = *(SSAInstruction**)key;
-        SSAInstruction* replacement = *(SSAInstruction**)value;
+        HashMap* expressions = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
+        HashMap* replacements = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
 
         for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
         {
             SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
 
-            switch(instruction->type)
+            size_t rhs = canonicalize_rhs(instruction);
+
+            void* found = hashmap_get(expressions, &rhs, sizeof(size_t), NULL);
+
+            if(found == NULL)
             {
-                case SSAInstructionType_SSABinOP:
-                {
-                    SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
-
-                    if(binop->left == to_replace)
-                    {
-                        binop->left = replacement;
-                    }
-
-                    if(binop->right == to_replace)
-                    {
-                        binop->right = replacement;
-                    }
-
-                    break;
-                }
-                case SSAInstructionType_SSAUnOP:
-                {
-                    SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
-
-                    if(unop->operand == to_replace)
-                    {
-                        unop->operand = replacement;
-                    }
-
-                    break;
-                }
-                default:
-                    break;
+                hashmap_insert(expressions, &rhs, sizeof(size_t), &instruction, sizeof(SSAInstruction*));
+                continue;
             }
+
+            hashmap_insert(replacements, &instruction, sizeof(SSAInstruction*), found, sizeof(SSAInstruction*));
         }
 
-        size_t pos = vector_find(ssa->instructions, &to_replace);
+        HashMapIterator it = 0;
+        void* key = NULL;
+        uint32_t key_size = 0;
+        void* value = NULL;
+        uint32_t value_size = 0;
 
-        if(pos == VECTOR_NOT_FOUND)
+        while(hashmap_iterate(replacements, &it, &key, &key_size, &value, &value_size))
         {
-            return false;
+            SSAInstruction* to_replace = *(SSAInstruction**)key;
+            SSAInstruction* replacement = *(SSAInstruction**)value;
+
+            for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+            {
+                SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
+                switch(instruction->type)
+                {
+                    case SSAInstructionType_SSABinOP:
+                    {
+                        SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+
+                        if(binop->left == to_replace)
+                        {
+                            binop->left = replacement;
+                            any_elimination = true;
+                        }
+
+                        if(binop->right == to_replace)
+                        {
+                            binop->right = replacement;
+                            any_elimination = true;
+                        }
+
+                        break;
+                    }
+                    case SSAInstructionType_SSAUnOP:
+                    {
+                        SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+
+                        if(unop->operand == to_replace)
+                        {
+                            unop->operand = replacement;
+                            any_elimination = true;
+                        }
+
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+
+            size_t pos = vector_find(ssa->instructions, &to_replace);
+
+            if(pos == VECTOR_NOT_FOUND)
+            {
+                return false;
+            }
+
+            vector_remove(ssa->instructions, pos);
         }
 
-        vector_remove(ssa->instructions, pos);
-    }
+        hashmap_free(expressions);
+        hashmap_free(replacements);
 
-    hashmap_free(expressions);
-    hashmap_free(replacements);
+        if(!any_elimination)
+        {
+            break;
+        }
+    }
 
     return true;
 }
@@ -609,5 +622,6 @@ void mathsexpr_ssa_print(SSA* ssa)
 void mathsexpr_ssa_destroy(SSA* ssa)
 {
     mathsexpr_arena_destroy(&ssa->instructions_data);
+    vector_free(ssa->instructions);
     free(ssa);
 }
