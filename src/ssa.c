@@ -13,9 +13,9 @@
 SSA* mathsexpr_ssa_new()
 {
     SSA* new_ssa = (SSA*)malloc(sizeof(SSA));
-    mathsexpr_arena_init(&new_ssa->instructions, 4096);
+    mathsexpr_arena_init(&new_ssa->instructions_data, 4096);
 
-    new_ssa->num_instructions = 0;
+    new_ssa->instructions = vector_new(128, sizeof(SSAInstruction*));
     new_ssa->counter = 0;
 
     return new_ssa;
@@ -27,9 +27,11 @@ SSAInstruction* mathsexpr_ssa_new_literal(SSA* ssa,
 {
     SSALiteral lit = { SSAInstructionType_SSALiteral, value, destination };
 
-    ssa->num_instructions++;
+    SSAInstruction* instruction_ptr = (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions_data, &lit, sizeof(SSALiteral));
 
-    return (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions, &lit, sizeof(SSALiteral));
+    vector_push_back(ssa->instructions, &instruction_ptr);
+
+    return instruction_ptr;
 }
 
 SSAInstruction* mathsexpr_ssa_new_variable(SSA* ssa,
@@ -38,9 +40,11 @@ SSAInstruction* mathsexpr_ssa_new_variable(SSA* ssa,
 {
     SSAVariable var = { SSAInstructionType_SSAVariable, name, destination };
 
-    ssa->num_instructions++;
+    SSAInstruction* instruction_ptr = (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions_data, &var, sizeof(SSAVariable));
 
-    return (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions, &var, sizeof(SSAVariable));
+    vector_push_back(ssa->instructions, &instruction_ptr);
+
+    return instruction_ptr;
 }
 
 SSAInstruction* mathsexpr_ssa_new_binop(SSA* ssa, 
@@ -51,9 +55,11 @@ SSAInstruction* mathsexpr_ssa_new_binop(SSA* ssa,
 {
     SSABinOP binop = { SSAInstructionType_SSABinOP, op, left, right, destination };
 
-    ssa->num_instructions++;
+    SSAInstruction* instruction_ptr = (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions_data, &binop, sizeof(SSABinOP));
 
-    return (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions, &binop, sizeof(SSABinOP));
+    vector_push_back(ssa->instructions, &instruction_ptr);
+
+    return instruction_ptr;
 }
 
 SSAInstruction* mathsexpr_ssa_new_unop(SSA* ssa,
@@ -63,57 +69,11 @@ SSAInstruction* mathsexpr_ssa_new_unop(SSA* ssa,
 {
     SSAUnOP unop = { SSAInstructionType_SSAUnOP, op, operand, destination };
 
-    ssa->num_instructions++;
+    SSAInstruction* instruction_ptr = (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions_data, &unop, sizeof(SSAUnOP));
 
-    return (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions, &unop, sizeof(SSAUnOP));
-}
+    vector_push_back(ssa->instructions, &instruction_ptr);
 
-SSAIterator mathsexpr_ssa_iterator_new()
-{
-    return 0;
-}
-
-bool mathsexpr_ssa_next_instruction(SSA* ssa, 
-                                    SSAIterator* it,
-                                    SSAInstruction** instruction)
-{
-    if((size_t)(*it) >= ssa->instructions.offset)
-    {
-        return false;
-    } 
-
-    while(((char*)mathsexpr_arena_at(&ssa->instructions, (size_t)(*it))) == 0)
-    {
-        *it += 1;
-
-        if((size_t)(*it) >= ssa->instructions.offset)
-        {
-            return false;
-        } 
-    }
-
-    *instruction = mathsexpr_arena_at(&ssa->instructions, (size_t)(*it));
-
-    switch((*instruction)->type)
-    {
-        case SSAInstructionType_SSALiteral:
-            *it += sizeof(SSALiteral);
-            break;
-        case SSAInstructionType_SSAVariable:
-            *it += sizeof(SSAVariable);
-            break;
-        case SSAInstructionType_SSABinOP:
-            *it += sizeof(SSABinOP);
-            break;
-        case SSAInstructionType_SSAUnOP:
-            *it += sizeof(SSAUnOP);
-            break;
-        default:
-            *it += 1;
-            break;
-    }
-
-    return true;
+    return instruction_ptr;
 }
 
 SSABinOPType ast_binop_to_ssa_binop(ASTBinOPType type)
@@ -272,11 +232,10 @@ bool ssa_optimize_constants_folding(SSA* ssa)
     {
         bool any_folding = false;
 
-        SSAInstruction* instruction;
-        SSAIterator it = mathsexpr_ssa_iterator_new();
-
-        while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
+        for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
         {
+            SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
             switch(instruction->type)
             {
                 case SSAInstructionType_SSABinOP:
@@ -349,13 +308,12 @@ bool ssa_optimize_constants_folding(SSA* ssa)
 bool ssa_optimize_dead_code_elimination(SSA* ssa)
 {
     const int value = 0;
-    HashMap* destinations = hashmap_new(ssa->num_instructions);
+    HashMap* destinations = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
 
-    SSAInstruction* instruction;
-    SSAIterator it = mathsexpr_ssa_iterator_new();
-
-    while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
+    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
     {
+        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
         switch(instruction->type)
         {
             case SSAInstructionType_SSABinOP:
@@ -398,11 +356,14 @@ bool ssa_optimize_dead_code_elimination(SSA* ssa)
         }
     }
 
-    instruction = NULL;
-    it = mathsexpr_ssa_iterator_new();
+    uint32_t i = 0;
 
-    while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
+    while(i < mathsexpr_ssa_num_instructions(ssa))
     {
+        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
+        bool any_remove = false;
+
         switch(instruction->type)
         {
             case SSAInstructionType_SSALiteral:
@@ -412,8 +373,8 @@ bool ssa_optimize_dead_code_elimination(SSA* ssa)
 
                 if(found == NULL && destination != 0)
                 {
-                    memset(instruction, 0, sizeof(SSALiteral));
-                    ssa->num_instructions--;
+                    vector_remove(ssa->instructions, i);
+                    any_remove = true;
                 }
 
                 break;
@@ -425,8 +386,8 @@ bool ssa_optimize_dead_code_elimination(SSA* ssa)
 
                 if(found == NULL && destination != 0)
                 {
-                    memset(instruction, 0, sizeof(SSAVariable));
-                    ssa->num_instructions--;
+                    vector_remove(ssa->instructions, i);
+                    any_remove = true;
                 }
 
                 break;
@@ -434,10 +395,140 @@ bool ssa_optimize_dead_code_elimination(SSA* ssa)
             default:
                 break;
         }
+
+        if(!any_remove)
+        {
+            i++;
+        }
     }
 
     hashmap_free(destinations);
 
+    return true;
+}
+
+#define SEED 0x12345678
+
+uint32_t canonicalize_rhs(SSAInstruction* instruction)
+{
+    switch(instruction->type)
+    {
+        case SSAInstructionType_SSALiteral:
+        {
+            SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
+            return hash_murmur3((const void*)&lit->value, sizeof(float), SEED);
+        }
+        case SSAInstructionType_SSAVariable:
+        {
+            SSAVariable* var = SSA_CAST(SSAVariable, instruction);
+            return (uint32_t)var->name;
+        }
+        case SSAInstructionType_SSABinOP:
+        {
+            SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+            size_t operands = (size_t)binop->left + (size_t)binop->right + (size_t)binop->op;
+            return hash_murmur3((const void*)&operands, sizeof(size_t), SEED);
+        }
+        case SSAInstructionType_SSAUnOP:
+        {
+            SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+            size_t operand = (size_t)unop->operand + (size_t)unop->op;
+            return hash_murmur3((const void*)&operand, sizeof(size_t), SEED);
+        }
+        default:
+            return 0;
+    }
+}
+
+bool ssa_optimize_common_subexpression_elimination(SSA* ssa)
+{
+    HashMap* expressions = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
+    HashMap* replacements = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
+
+    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    {
+        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
+        size_t rhs = canonicalize_rhs(instruction);
+
+        void* found = hashmap_get(expressions, &rhs, sizeof(size_t), NULL);
+
+        if(found == NULL)
+        {
+            hashmap_insert(expressions, &rhs, sizeof(size_t), &instruction, sizeof(SSAInstruction*));
+            continue;
+        }
+
+        hashmap_insert(replacements, &instruction, sizeof(SSAInstruction*), found, sizeof(SSAInstruction*));
+    }
+
+    HashMapIterator it = 0;
+    void* key = NULL;
+    uint32_t key_size = 0;
+    void* value = NULL;
+    uint32_t value_size = 0;
+
+    while(hashmap_iterate(replacements, &it, &key, &key_size, &value, &value_size))
+    {
+        SSAInstruction* to_replace = *(SSAInstruction**)key;
+        SSAInstruction* replacement = *(SSAInstruction**)value;
+
+        for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+        {
+            SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
+            switch(instruction->type)
+            {
+                case SSAInstructionType_SSABinOP:
+                {
+                    SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+
+                    if(binop->left == to_replace)
+                    {
+                        binop->left = replacement;
+                    }
+
+                    if(binop->right == to_replace)
+                    {
+                        binop->right = replacement;
+                    }
+
+                    break;
+                }
+                case SSAInstructionType_SSAUnOP:
+                {
+                    SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+
+                    if(unop->operand == to_replace)
+                    {
+                        unop->operand = replacement;
+                    }
+
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        size_t pos = vector_find(ssa->instructions, &to_replace);
+
+        if(pos == VECTOR_NOT_FOUND)
+        {
+            return false;
+        }
+
+        vector_remove(ssa->instructions, pos);
+    }
+
+    hashmap_free(expressions);
+    hashmap_free(replacements);
+
+    return true;
+}
+
+bool ssa_optimize_code_sinking(SSA* ssa)
+{
     return true;
 }
 
@@ -455,16 +546,27 @@ bool mathsexpr_ssa_optimize(SSA* ssa)
         return false;
     }
 
+    if(!ssa_optimize_common_subexpression_elimination(ssa))
+    {
+        logger_log_error("Error during common subexpression elimination optimization");
+        return false;
+    }
+
+    if(!ssa_optimize_code_sinking(ssa))
+    {
+        logger_log_error("Error during code sinking optimization");
+        return false;
+    }
+
     return true;
 }
 
 void mathsexpr_ssa_print(SSA* ssa)
 {
-    SSAInstruction* instruction;
-    SSAIterator it = mathsexpr_ssa_iterator_new();
-
-    while(mathsexpr_ssa_next_instruction(ssa, &it, &instruction))
+    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
     {
+        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
         switch(instruction->type)
         {
             case SSAInstructionType_SSALiteral:
@@ -495,7 +597,7 @@ void mathsexpr_ssa_print(SSA* ssa)
             {
                 SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
                 MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting");
-                printf("t%u = %st%u\n", ssa_unop_type_as_string(unop->op), ssa_get_destination(unop->operand));
+                printf("t%u = %st%u\n", unop->destination, ssa_unop_type_as_string(unop->op), ssa_get_destination(unop->operand));
                 break;
             }
             default:
@@ -506,6 +608,6 @@ void mathsexpr_ssa_print(SSA* ssa)
 
 void mathsexpr_ssa_destroy(SSA* ssa)
 {
-    mathsexpr_arena_destroy(&ssa->instructions);
+    mathsexpr_arena_destroy(&ssa->instructions_data);
     free(ssa);
 }

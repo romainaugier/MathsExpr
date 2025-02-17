@@ -51,7 +51,7 @@ void* mathsexpr_arena_at(Arena* arena, const size_t offset)
 {
     MATHSEXPR_ASSERT(offset < arena->capacity, "offset too large");
 
-    void* data_address = arena->ptr + offset;
+    void* data_address = (char*)arena->ptr + offset;
 
     return data_address;
 }
