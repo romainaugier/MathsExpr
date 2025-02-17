@@ -64,11 +64,15 @@ typedef struct {
 
 #define SSA_CAST(__type__, __instruction__) ((__type__*)((__instruction__)->type == SSAInstructionType_##__type__ ? __instruction__ : NULL))
 
-typedef struct
-{
+typedef enum {
+    SSAFlags_InlineLiterals = 0x1,
+} SSAFlags;
+
+typedef struct {
     Arena instructions_data;
     Vector* instructions;
     uint32_t counter;
+    uint64_t flags;
 } SSA;
 
 MATHSEXPR_API SSA* mathsexpr_ssa_new();

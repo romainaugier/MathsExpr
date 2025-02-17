@@ -7,6 +7,8 @@
 #include "libromano/math/common32.h"
 #include "libromano/logger.h"
 #include "libromano/hashmap.h"
+#include "libromano/string.h"
+#include "libromano/flag.h"
 
 #include <string.h>
 
@@ -540,8 +542,97 @@ bool ssa_optimize_common_subexpression_elimination(SSA* ssa)
     return true;
 }
 
+uint32_t ssa_find_earliest_instruction_use(SSA* ssa, SSAInstruction* instruction)
+{
+    uint32_t earliest_use = UINT32_MAX;
+
+    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    {
+        SSAInstruction* instruction_at = mathsexpr_ssa_instruction_at(ssa, i);
+
+        if(instruction == instruction_at)
+        {
+            continue;
+        }
+
+        switch(instruction_at->type)
+        {
+            case SSAInstructionType_SSABinOP:
+            {
+                SSABinOP* binop = SSA_CAST(SSABinOP, instruction_at);
+
+                if(binop->left == instruction || binop->right == instruction)
+                {
+                    earliest_use = i < earliest_use ? i : earliest_use;
+                }
+
+                break;
+            }
+            case SSAInstructionType_SSAUnOP:
+            {
+                SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction_at);
+
+                if(unop->operand == instruction)
+                {
+                    earliest_use = i < earliest_use ? i : earliest_use;
+                }
+
+                break;
+            }
+            
+            default:
+                break;
+        }
+    }
+
+    return earliest_use;
+}
+
 bool ssa_optimize_code_sinking(SSA* ssa)
 {
+    while(true)
+    {
+        bool any_sinking = false;
+
+        HashMap* earliest_uses = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
+
+        for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+        {
+            SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
+        }
+
+        hashmap_free(earliest_uses);
+
+        if(!any_sinking)
+        {
+            break;
+        }
+    }
+
+    return true;
+}
+
+bool ssa_optimize_inline_literals(SSA* ssa)
+{
+    uint32_t i = 0;
+
+    while(i < mathsexpr_ssa_num_instructions(ssa))
+    {
+        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
+        if(instruction->type == SSAInstructionType_SSALiteral &&
+           ssa_get_destination(instruction) != 0)
+        {
+            vector_remove(ssa->instructions, i);
+            continue;
+        }
+
+        i++;
+    }
+
+    SET_FLAG(ssa->flags, SSAFlags_InlineLiterals);
+
     return true;
 }
 
@@ -565,6 +656,12 @@ bool mathsexpr_ssa_optimize(SSA* ssa)
         return false;
     }
 
+    if(!ssa_optimize_inline_literals(ssa))
+    {
+        logger_log_error("Error during literals inlining optimization");
+        return false;
+    }
+
     if(!ssa_optimize_code_sinking(ssa))
     {
         logger_log_error("Error during code sinking optimization");
@@ -572,6 +669,37 @@ bool mathsexpr_ssa_optimize(SSA* ssa)
     }
 
     return true;
+}
+
+void ssa_print_binop_inlined(SSABinOP* binop)
+{
+    String fmt_string = string_newf("t%d = ", binop->destination);
+
+    if(binop->left->type == SSAInstructionType_SSALiteral)
+    {
+        SSALiteral* lit = SSA_CAST(SSALiteral, binop->left);
+        string_appendf(&fmt_string, "%.3f", lit->value);
+    }
+    else
+    {
+        string_appendf(&fmt_string, "t%u", ssa_get_destination(binop->left));
+    }
+
+    string_appendf(&fmt_string, " %s ", ssa_binop_type_as_string(binop->op));
+
+    if(binop->right->type == SSAInstructionType_SSALiteral)
+    {
+        SSALiteral* lit = SSA_CAST(SSALiteral, binop->right);
+        string_appendf(&fmt_string, "%.3f", lit->value);
+    }
+    else
+    {
+        string_appendf(&fmt_string, "t%u", ssa_get_destination(binop->right));
+    }
+
+    puts(fmt_string); 
+
+    string_free(fmt_string);
 }
 
 void mathsexpr_ssa_print(SSA* ssa)
@@ -600,10 +728,19 @@ void mathsexpr_ssa_print(SSA* ssa)
             {
                 SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
                 MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting");
-                printf("t%u = t%u %s t%u\n", binop->destination, 
-                                             ssa_get_destination(binop->left),
-                                             ssa_binop_type_as_string(binop->op),
-                                             ssa_get_destination(binop->right));
+
+                if(HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals))
+                {
+                    ssa_print_binop_inlined(binop);
+                }
+                else
+                {
+                    printf("t%u = t%u %s t%u\n", binop->destination, 
+                                                ssa_get_destination(binop->left),
+                                                ssa_binop_type_as_string(binop->op),
+                                                ssa_get_destination(binop->right));
+                }
+
                 break;
             }
             case SSAInstructionType_SSAUnOP:
