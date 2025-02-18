@@ -204,7 +204,7 @@ uint32_t canonicalize_rhs(SSAInstruction* instruction)
         case SSAInstructionType_SSAVariable:
         {
             SSAVariable* var = SSA_CAST(SSAVariable, instruction);
-            return (uint32_t)var->name;
+            return hash_murmur3(var->name, var->name_length, SEED);
         }
         case SSAInstructionType_SSABinOP:
         {
@@ -219,6 +219,13 @@ uint32_t canonicalize_rhs(SSAInstruction* instruction)
             SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
             uint32_t operand_hash = canonicalize_rhs(unop->operand);
             uint32_t parts[2] = { operand_hash, (uint32_t)unop->op };
+            return hash_murmur3((const void*)parts, sizeof(parts), SEED);
+        }
+        case SSAInstructionType_SSAFunction:
+        {
+            SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+            uint32_t argument_hash = canonicalize_rhs(func->argument);
+            uint32_t parts[2] = { argument_hash, (uint32_t)func->func };
             return hash_murmur3((const void*)parts, sizeof(parts), SEED);
         }
         default:
@@ -444,6 +451,60 @@ bool ssa_optimize_strength_reduction(SSA* ssa)
     return true;
 }
 
+bool ssa_optimize_refine_destinations(SSA* ssa)
+{
+    uint32_t new_counter = 0;
+    HashMap* dest_map = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
+
+    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    {
+        SSAInstruction* instr = mathsexpr_ssa_instruction_at(ssa, i);
+        
+        if(instr->type == SSAInstructionType_SSALiteral)
+        {
+            continue;
+        }
+
+        uint32_t old_dest = mathsexpr_ssa_get_instruction_destination(instr);
+
+        hashmap_insert(dest_map, 
+                      (const void*)&old_dest, sizeof(uint32_t),
+                      (void*)&new_counter, sizeof(uint32_t));
+
+        new_counter++;
+    }
+
+    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    {
+        SSAInstruction* instr = mathsexpr_ssa_instruction_at(ssa, i);
+
+        if(instr->type != SSAInstructionType_SSALiteral)
+        {
+            uint32_t old_dest = mathsexpr_ssa_get_instruction_destination(instr);
+            uint32_t* new_dest = hashmap_get(dest_map, &old_dest, sizeof(uint32_t), NULL);
+            
+            switch(instr->type)
+            {
+                case SSAInstructionType_SSAVariable:
+                    SSA_CAST(SSAVariable, instr)->destination = *new_dest;
+                    break;
+                case SSAInstructionType_SSABinOP:
+                    SSA_CAST(SSABinOP, instr)->destination = *new_dest;
+                    break;
+                case SSAInstructionType_SSAUnOP:
+                    SSA_CAST(SSAUnOP, instr)->destination = *new_dest;
+                    break;
+                default: break;
+            }
+        }
+    }
+
+    ssa->counter = new_counter;
+    hashmap_free(dest_map);
+
+    return true;
+}
+
 bool mathsexpr_ssa_optimize(SSA* ssa, uint64_t optimization_flags)
 {
     const uint32_t n_passes = HAS_FLAG(optimization_flags, SSAOptimizationFlags_MultiPass) ? 2 : 1;
@@ -488,9 +549,15 @@ bool mathsexpr_ssa_optimize(SSA* ssa, uint64_t optimization_flags)
         if(HAS_FLAG(optimization_flags, SSAOptimizationFlags_StrengthReduction) &&
         !ssa_optimize_strength_reduction(ssa))
         {
-            logger_log_error("ERror during strength reduction optimization");
+            logger_log_error("Error during strength reduction optimization");
             return false;
         }
+    }
+
+    if(!ssa_optimize_refine_destinations(ssa))
+    {
+        logger_log_error("Error during destination refinement optimization");
+        return false;
     }
 
     return true;

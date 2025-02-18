@@ -23,9 +23,12 @@ ASTNode* mathsexpr_ast_new_literal(AST* ast, float value)
     return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &lit, sizeof(ASTLiteral));
 }
 
-ASTNode* mathsexpr_ast_new_variable(AST* ast, char name)
+ASTNode* mathsexpr_ast_new_variable(AST* ast, char* name, uint32_t name_length)
 {
-    ASTVariable var = { ASTNodeType_ASTVariable, name };
+    ASTVariable var;
+    var.base.type = ASTNodeType_ASTVariable;
+    memcpy(&var.name, name, name_length);
+    var.name_length = name_length;
 
     return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &var, sizeof(ASTVariable));
 }
@@ -42,6 +45,17 @@ ASTNode* mathsexpr_ast_new_unop(AST* ast, ASTUnOPType op, ASTNode* operand)
     ASTUnOP unop = { ASTNodeType_ASTUnOP, op, operand };
 
     return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &unop, sizeof(ASTUnOP));
+}
+
+ASTNode* mathsexpr_ast_new_function(AST* ast, char* name, uint32_t name_length, ASTNode* argument)
+{
+    ASTFunction func;
+    func.base.type = ASTNodeType_ASTFunction;
+    memcpy(&func.name, name, name_length);
+    func.name_length = name_length;
+    func.argument = argument;
+
+    return (ASTNode*)mathsexpr_arena_push(&ast->nodes, &func, sizeof(ASTFunction));
 }
 
 ASTBinOPType mathsexpr_ast_token_op_to_binop(const ParserToken* token)
@@ -108,7 +122,7 @@ bool mathsexpr_ast_from_infix_parser_tokens(AST* ast, Vector* tokens)
 
             case ParserTokenType_Variable:
             {
-                ASTNode* node = mathsexpr_ast_new_variable(ast, *(token->start));
+                ASTNode* node = mathsexpr_ast_new_variable(ast, token->start, token->size);
                 stack_push(nodes_stack, node);
                 break;
             }
@@ -142,6 +156,10 @@ bool mathsexpr_ast_from_infix_parser_tokens(AST* ast, Vector* tokens)
                 break;
             }
 
+            case ParserTokenType_Function:
+                stack_push(operators_stack, *token);
+                break;
+
             case ParserTokenType_LParen:
                 stack_push(operators_stack, *token);
                 break;
@@ -166,6 +184,17 @@ bool mathsexpr_ast_from_infix_parser_tokens(AST* ast, Vector* tokens)
                 }
 
                 stack_pop(operators_stack);
+
+                if(!stack_is_empty(operators_stack) &&
+                    stack_top(operators_stack)->token_type == ParserTokenType_Function)
+                {
+                    ParserToken func_token = stack_pop(operators_stack);
+
+                    ASTNode* arg = stack_pop(nodes_stack);
+                    ASTNode* func_node = mathsexpr_ast_new_function(ast, func_token.start, func_token.size, arg);
+
+                    stack_push(nodes_stack, func_node);
+                }
 
                 break;
             }
@@ -242,8 +271,11 @@ void ast_print_recursive(ASTNode* node, int depth)
             break;
             
         case ASTNodeType_ASTVariable:
-            printf("AST VARIABLE: %c\n", ((ASTVariable*)node)->name);
+        {
+            ASTVariable* var = AST_CAST(ASTVariable, node);
+            printf("AST VARIABLE: %.*s\n", var->name_length, var->name);
             break;
+        }
             
         case ASTNodeType_ASTBinOP:
         {
@@ -259,6 +291,14 @@ void ast_print_recursive(ASTNode* node, int depth)
             ASTUnOP* unop = (ASTUnOP*)node;
             printf("AST UNOP\n");
             ast_print_recursive(unop->operand, depth + 1);
+            break;
+        }
+
+        case ASTNodeType_ASTFunction:
+        {
+            ASTFunction* func = AST_CAST(ASTFunction, node);
+            printf("AST FUNCTION: %.*s\n", func->name_length, func->name);
+            ast_print_recursive(func->argument, depth + 1);
             break;
         }
     }

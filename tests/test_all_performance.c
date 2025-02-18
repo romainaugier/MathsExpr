@@ -16,16 +16,17 @@
 
 int main(void)
 {
+#if 0
     logger_init();
 
     const char* const exprs[NUM_EXPRS] = {
-        "a * 3 + 57 * (b + 34)",
-        "2x - 7",
-        "4x^2 + 7x + 2",
-        "9 + 24 / (7 - 3)",
-        "(0.5 + 18x * (-34 - 4x)) ^ 0.5",
+        "a * 3 + 57 * sqrt(b + 34)",
+        "2 * x - 7",
+        "4 * x ^ 2 + 7 * x + 2",
+        "9 + 24 / (cos(7 - 3))",
+        "(0.5 + 18 * x * sin(-34 - 4 * x)) ^ 0.5",
         "-3 + 6",
-        "(18x) * a + 5.0 - b / (18x)"
+        "cos(tan(18 * x)) * a + 5.0 - b / (18 * x)"
     };
 
     for(uint32_t i = 0; i < NUM_EXPRS; i++)
@@ -35,8 +36,13 @@ int main(void)
             printf("****************************************\n");
         }
 
+        printf("Expr%d: %s\n", i + 1, exprs[i]);
+
         const size_t expr_size = strlen(exprs[i]);
 
+        SCOPED_PROFILE_US_START(all_pipeline);
+
+        SCOPED_PROFILE_US_START(parser);
         Vector* expr_tokens = vector_new(128, sizeof(ParserToken));
 
         if(mathsexpr_parser_parse(exprs[i], expr_size, expr_tokens) != 0)
@@ -47,12 +53,9 @@ int main(void)
             logger_release();
             return 1;
         }
+        SCOPED_PROFILE_US_END(parser);
 
-        printf("Expr%d: %s\n", i + 1, exprs[i]);
-        printf("Expr%d: tokens\n", i + 1);
-        mathsexpr_parser_debug_tokens(expr_tokens);
-
-        printf("Expr%d ast\n", i + 1);
+        SCOPED_PROFILE_US_START(ast);
         AST* expr_ast = mathsexpr_ast_new();
 
         if(!mathsexpr_ast_from_infix_parser_tokens(expr_ast, expr_tokens))
@@ -64,10 +67,9 @@ int main(void)
             logger_release();
             return 1;
         }
+        SCOPED_PROFILE_US_END(ast);
 
-        mathsexpr_ast_print(expr_ast);
-
-        printf("Expr%d ssa\n", i + 1);
+        SCOPED_PROFILE_US_START(ssa);
         SSA* expr_ssa = mathsexpr_ssa_new();
 
         if(!mathsexpr_ssa_from_ast(expr_ssa, expr_ast))
@@ -81,20 +83,21 @@ int main(void)
 
             return 1;
         }
+        SCOPED_PROFILE_US_END(ssa);
 
-        mathsexpr_ssa_print(expr_ssa);
-
+        SCOPED_PROFILE_US_START(ssa_optimizations);
         mathsexpr_ssa_optimize(expr_ssa, SSAOptimizationFlags_All);
-
-        printf("Expr%d optimized ssa\n", i + 1);
-        mathsexpr_ssa_print(expr_ssa);
+        SCOPED_PROFILE_US_END(ssa_optimizations);
 
         mathsexpr_ssa_destroy(expr_ssa);
         mathsexpr_ast_destroy(expr_ast);
         vector_free(expr_tokens);
+
+        SCOPED_PROFILE_US_END(all_pipeline);
     }
 
     logger_release();
 
+#endif /* if 0 */
     return 0;
 }

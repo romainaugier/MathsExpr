@@ -5,6 +5,7 @@
 #include "mathsexpr/parser.h"
 
 #include "libromano/stack_no_alloc.h"
+#include "libromano/logger.h"
 
 #include <string.h>
 
@@ -36,6 +37,32 @@ MATHSEXPR_FORCE_INLINE bool is_operator(unsigned int c)
 MATHSEXPR_FORCE_INLINE bool is_paren(unsigned int c)
 {
     return c == '(' | c == ')';
+}
+
+MATHSEXPR_FORCE_INLINE uint32_t is_func(char* s, uint32_t max_s, uint32_t i)
+{
+    uint32_t start = 0;
+
+    while(i < max_s && (is_letter(s[i]) || is_digit(s[i])))
+    {
+        start++;
+        i++;
+    }
+
+    return s[i] == '(' ? start : 0;
+}
+
+MATHSEXPR_FORCE_INLINE uint32_t consume_variable(char* s, uint32_t max_s, uint32_t i)
+{
+    uint32_t start = 0;
+
+    while(i < max_s && (is_letter(s[i]) || is_digit(s[i])))
+    {
+        start++;
+        i++;
+    }
+
+    return start;
 }
 
 uint32_t mathsexpr_lex(const char* expression,
@@ -75,17 +102,42 @@ uint32_t mathsexpr_lex(const char* expression,
         }
         else if(is_letter(expression[i]))
         {
-            if(vector_size(tokens) > 0 && 
-               ((ParserToken*)vector_back(tokens))->token_type == ParserTokenType_Literal)
+            uint32_t func_length = is_func((char*)expression, expression_size, i);
+
+            if(func_length == 0)
             {
-                ParserToken mul_token = { (char*)"*", 1, ParserTokenType_BinOperator };
-                vector_push_back(tokens, &mul_token);
+                uint32_t length = consume_variable((char*)expression, expression_size, i);
+
+                if(length > VARIABLE_LENGTH_MAX)
+                {
+                    logger_log_error("Cannot have variable names longer than %d characters (variable: %.*s)", 
+                                     VARIABLE_LENGTH_MAX,
+                                     length,
+                                     &expression[i]);
+                    return false;
+                }
+
+                ParserToken token = { (char*)&expression[i], length, ParserTokenType_Variable };
+                vector_push_back(tokens, &token);
+
+                i += length;
             }
+            else
+            {
+                if(func_length > FUNCTION_LENGTH_MAX)
+                {
+                    logger_log_error("Cannot have function names longer than %d characters (function: %.*s)",
+                                     FUNCTION_LENGTH_MAX,
+                                     func_length,
+                                     &expression[i]);
+                    return false;
+                }
 
-            ParserToken token = { (char*)&expression[i], 1, ParserTokenType_Variable };
-            vector_push_back(tokens, &token);
+                ParserToken token = { (char*)&expression[i], func_length, ParserTokenType_Function };
+                vector_push_back(tokens, &token);
 
-            i++;
+                i += func_length;
+            }
         }
         else if(is_operator(expression[i]))
         {
@@ -293,6 +345,9 @@ void mathsexpr_parser_debug_tokens(Vector* tokens)
                 break;
             case ParserTokenType_Variable:
                 printf("VARIABLE: %.*s\n", token->size, token->start);
+                break;
+            case ParserTokenType_Function:
+                printf("FUNCTION: %.*s\n", token->size, token->start);
                 break;
 
             default:

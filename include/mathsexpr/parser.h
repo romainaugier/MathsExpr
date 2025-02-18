@@ -20,6 +20,7 @@ typedef enum {
     ParserTokenType_UnOperator,
     ParserTokenType_LParen,
     ParserTokenType_RParen,
+    ParserTokenType_Function,
 } ParserTokenType_;
 
 typedef struct {
@@ -27,6 +28,9 @@ typedef struct {
     uint32_t size;
     uint32_t token_type;
 } ParserToken;
+
+#define VARIABLE_LENGTH_MAX 8
+#define FUNCTION_LENGTH_MAX 8
 
 MATHSEXPR_API uint32_t mathsexpr_parser_parse(const char* expression,
                                               uint32_t expression_size,

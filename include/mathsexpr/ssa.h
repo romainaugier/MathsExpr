@@ -9,6 +9,8 @@
 
 #include "mathsexpr/ast.h"
 
+#include "libromano/hashmap.h"
+
 MATHSEXPR_CPP_ENTER
 
 typedef enum {
@@ -16,6 +18,7 @@ typedef enum {
     SSAInstructionType_SSAVariable = 2,
     SSAInstructionType_SSABinOP = 3,
     SSAInstructionType_SSAUnOP = 4,
+    SSAInstructionType_SSAFunction = 5,
 } SSAInstructionType;
 
 typedef enum {
@@ -31,6 +34,30 @@ typedef enum {
     SSABinOPType_Pow,
 } SSABinOPType;
 
+typedef enum {
+    SSAFuncType_Abs,
+    SSAFuncType_Exp,
+    SSAFuncType_Sqrt,
+    SSAFuncType_Rcp,
+    SSAFuncType_Rsqrt,
+    SSAFuncType_Log,
+    SSAFuncType_Log2,
+    SSAFuncType_Log10,
+    SSAFuncType_Floor,
+    SSAFuncType_Ceil,
+    SSAFuncType_Frac,
+    SSAFuncType_Acos,
+    SSAFuncType_Asin,
+    SSAFuncType_Atan,
+    SSAFuncType_Atan2,
+    SSAFuncType_Cos,
+    SSAFuncType_Sin,
+    SSAFuncType_Tan,
+    SSAFuncType_Cosh,
+    SSAFuncType_Sinh,
+    SSAFuncType_Tanh,
+} SSAFuncType;
+
 typedef struct {
     SSAInstructionType type;
 } SSAInstruction;
@@ -43,7 +70,8 @@ typedef struct {
 
 typedef struct {
     SSAInstruction base;
-    char name;
+    char name[VARIABLE_LENGTH_MAX];
+    uint32_t name_length;
     uint32_t destination;
 } SSAVariable;
 
@@ -62,6 +90,13 @@ typedef struct {
     uint32_t destination;
 } SSAUnOP;
 
+typedef struct {
+    SSAInstruction base;
+    SSAFuncType func;
+    SSAInstruction* argument;
+    uint32_t destination;
+} SSAFunction;
+
 #define SSA_CAST(__type__, __instruction__) ((__type__*)((__instruction__)->type == SSAInstructionType_##__type__ ? __instruction__ : NULL))
 
 typedef enum {
@@ -71,6 +106,7 @@ typedef enum {
 typedef struct {
     Arena instructions_data;
     Vector* instructions;
+    HashMap* functions_lookup_table;
     uint32_t counter;
     uint64_t flags;
 } SSA;
@@ -82,7 +118,8 @@ MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_literal(SSA* ssa,
                                                         uint32_t destination);
 
 MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_variable(SSA* ssa,
-                                                         char name,
+                                                         char* name,
+                                                         uint32_t name_length,
                                                          uint32_t destination);
 
 MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_binop(SSA* ssa, 
@@ -95,6 +132,11 @@ MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_unop(SSA* ssa,
                                                      SSAUnOPType op,
                                                      SSAInstruction* operand,
                                                      uint32_t destination);
+
+MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_function(SSA* ssa,
+                                                         SSAFuncType type,
+                                                         SSAInstruction* argument,
+                                                         uint32_t destination);
 
 MATHSEXPR_FORCE_INLINE size_t mathsexpr_ssa_num_instructions(SSA* ssa)
 {

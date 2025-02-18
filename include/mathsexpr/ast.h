@@ -19,6 +19,7 @@ typedef enum {
     ASTNodeType_ASTVariable,
     ASTNodeType_ASTBinOP,
     ASTNodeType_ASTUnOP,
+    ASTNodeType_ASTFunction,
 } ASTNodeType;
 
 typedef enum {
@@ -45,7 +46,8 @@ typedef struct {
 
 typedef struct {
     ASTNode base;
-    char name;
+    char name[VARIABLE_LENGTH_MAX];
+    uint32_t name_length;
 } ASTVariable;
 
 typedef struct {
@@ -61,6 +63,13 @@ typedef struct {
     ASTNode* operand;
 } ASTUnOP;
 
+typedef struct {
+    ASTNode base;
+    char name[FUNCTION_LENGTH_MAX];
+    uint32_t name_length;
+    ASTNode* argument;
+} ASTFunction;
+
 #define AST_CAST(__type__, __node__) ((__type__*)((__node__)->type == ASTNodeType_##__type__ ? __node__ : NULL))
 
 typedef struct 
@@ -73,11 +82,13 @@ MATHSEXPR_API AST* mathsexpr_ast_new();
 
 MATHSEXPR_API ASTNode* mathsexpr_ast_new_literal(AST* ast, float value);
 
-MATHSEXPR_API ASTNode* mathsexpr_ast_new_variable(AST* ast, char name);
+MATHSEXPR_API ASTNode* mathsexpr_ast_new_variable(AST* ast, char* name, uint32_t name_length);
 
 MATHSEXPR_API ASTNode* mathsexpr_ast_new_binop(AST* ast, ASTBinOPType op, ASTNode* left, ASTNode* right);
 
 MATHSEXPR_API ASTNode* mathsexpr_ast_new_unop(AST* ast, ASTUnOPType op, ASTNode* operand);
+
+MATHSEXPR_API ASTNode* mathsexpr_ast_new_function(AST* ast, char* name, uint32_t name_length, ASTNode* argument);
 
 MATHSEXPR_API bool mathsexpr_ast_from_infix_parser_tokens(AST* ast, Vector* tokens);
 
