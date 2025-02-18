@@ -3,7 +3,7 @@
 // All rights reserved. 
 
 #include "mathsexpr/parser.h"
-#include "mathsexpr/ssa.h"
+#include "mathsexpr/ssa_optimize.h"
 
 #include "libromano/logger.h"
 
@@ -84,7 +84,7 @@ int main(void)
 
         mathsexpr_ssa_print(expr_ssa);
 
-        mathsexpr_ssa_optimize(expr_ssa);
+        mathsexpr_ssa_optimize(expr_ssa, SSAOptimizationFlags_All);
 
         printf("Expr%d optimized ssa\n", i + 1);
         mathsexpr_ssa_print(expr_ssa);

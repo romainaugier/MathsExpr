@@ -106,9 +106,9 @@ MATHSEXPR_FORCE_INLINE SSAInstruction* mathsexpr_ssa_instruction_at(SSA* ssa, si
     return *((SSAInstruction**)vector_at(ssa->instructions, i));
 }
 
-MATHSEXPR_API bool mathsexpr_ssa_from_ast(SSA* ssa, AST* ast);
+MATHSEXPR_API uint32_t mathsexpr_ssa_get_instruction_destination(SSAInstruction* instruction);
 
-MATHSEXPR_API bool mathsexpr_ssa_optimize(SSA* ssa);
+MATHSEXPR_API bool mathsexpr_ssa_from_ast(SSA* ssa, AST* ast);
 
 MATHSEXPR_API void mathsexpr_ssa_print(SSA* ssa);
 
