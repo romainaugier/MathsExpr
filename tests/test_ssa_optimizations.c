@@ -14,10 +14,11 @@
 int main(void)
 {
     logger_init();
+    logger_set_level(LogLevel_Debug);
 
     const char* const exprs[NUM_EXPRS] = {
         "a * 3 + 57 * sqrt(b + 34)",
-        "2 * x - 7",
+        "2 * x - 7 + sqrt(7.0)",
         "4 * x ^ 2 + 7 * x + 2",
         "9 + 24 / (cos(7 - 3))",
         "(0.5 + 18 * x * sin(-34 - 4 * x)) ^ 0.5",
