@@ -13,47 +13,45 @@
 void ssa_func_lookup_table_init(HashMap* func_lookup_table)
 {
     uint32_t value = (uint32_t)SSAFuncType_Tanh;
-    hashmap_insert(func_lookup_table, "abs", 3, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "tanh", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Sinh;
-    hashmap_insert(func_lookup_table, "exp", 3, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "sinh", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Cosh;
-    hashmap_insert(func_lookup_table, "sqrt", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "cosh", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Tan;
-    hashmap_insert(func_lookup_table, "rcp", 3, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "tan", 3, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Sin;
-    hashmap_insert(func_lookup_table, "rsqrt", 5, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "sin", 3, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Cos;
-    hashmap_insert(func_lookup_table, "log", 3, &value, sizeof(uint32_t));
-    value = (uint32_t)SSAFuncType_Atan2;
-    hashmap_insert(func_lookup_table, "log2", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "cos", 3, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Atan;
-    hashmap_insert(func_lookup_table, "log10", 5, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "atan", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Asin;
-    hashmap_insert(func_lookup_table, "floor", 5, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "asin", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Acos;
-    hashmap_insert(func_lookup_table, "ceil", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "acos", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Frac;
     hashmap_insert(func_lookup_table, "frac", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Ceil;
-    hashmap_insert(func_lookup_table, "acos", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "ceil", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Floor;
-    hashmap_insert(func_lookup_table, "asin", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "floor", 5, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Log10;
-    hashmap_insert(func_lookup_table, "atan", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "log10", 5, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Log2;
-    hashmap_insert(func_lookup_table, "atan2", 5, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "log2", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Log;
-    hashmap_insert(func_lookup_table, "cos", 3, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "log", 3, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Rsqrt;
-    hashmap_insert(func_lookup_table, "sin", 3, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "rsqrt", 5, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Rcp;
-    hashmap_insert(func_lookup_table, "tan", 3, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "rcp", 3, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Sqrt;
-    hashmap_insert(func_lookup_table, "cosh", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "sqrt", 4, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Exp;
-    hashmap_insert(func_lookup_table, "sinh", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "exp", 3, &value, sizeof(uint32_t));
     value = (uint32_t)SSAFuncType_Abs;
-    hashmap_insert(func_lookup_table, "tanh", 4, &value, sizeof(uint32_t));
+    hashmap_insert(func_lookup_table, "abs", 3, &value, sizeof(uint32_t));
 }
 
 uint32_t* ssa_get_func_type(SSA* ssa, const char* func_name, uint32_t func_name_length)
@@ -69,6 +67,8 @@ SSA* mathsexpr_ssa_new()
     new_ssa->instructions = vector_new(128, sizeof(SSAInstruction*));
     new_ssa->counter = 0;
     new_ssa->functions_lookup_table = hashmap_new(128);
+
+    ssa_func_lookup_table_init(new_ssa->functions_lookup_table);
 
     return new_ssa;
 }
@@ -314,8 +314,6 @@ const char* ssa_func_type_as_string(SSAFuncType type)
             return "asin";
         case SSAFuncType_Atan:
             return "atan";
-        case SSAFuncType_Atan2:
-            return "atan2";
         case SSAFuncType_Cos:
             return "cos";
         case SSAFuncType_Sin:
@@ -398,6 +396,25 @@ void ssa_print_binop_inlined(SSABinOP* binop)
     string_free(fmt_string);
 }
 
+void ssa_print_function_inlined(SSAFunction* func)
+{
+    String fmt_string = string_newf("t%d = call %s", func->destination, ssa_func_type_as_string(func->func));
+
+    if(func->argument->type == SSAInstructionType_SSALiteral)
+    {
+        SSALiteral* lit = SSA_CAST(SSALiteral, func->argument);
+        string_appendf(&fmt_string, "(%.3f)", lit->value);
+    }
+    else
+    {
+        string_appendf(&fmt_string, "(t%u)", mathsexpr_ssa_get_instruction_destination(func->argument));
+    }
+
+    puts(fmt_string); 
+
+    string_free(fmt_string);
+}
+
 void mathsexpr_ssa_print(SSA* ssa)
 {
     for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
@@ -409,21 +426,21 @@ void mathsexpr_ssa_print(SSA* ssa)
             case SSAInstructionType_SSALiteral:
             {
                 SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
-                MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting");
+                MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting, should be SSALiteral");
                 printf("t%u = %.3f\n", lit->destination, lit->value);
                 break;
             }
             case SSAInstructionType_SSAVariable:
             {
                 SSAVariable* var = SSA_CAST(SSAVariable, instruction);
-                MATHSEXPR_ASSERT(var != NULL, "Wrong type casting");
+                MATHSEXPR_ASSERT(var != NULL, "Wrong type casting, should be SSAVariable");
                 printf("t%u = %.*s\n", var->destination, var->name_length, var->name);
                 break;
             }
             case SSAInstructionType_SSABinOP:
             {
                 SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
-                MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting");
+                MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
 
                 if(HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals))
                 {
@@ -431,10 +448,11 @@ void mathsexpr_ssa_print(SSA* ssa)
                 }
                 else
                 {
-                    printf("t%u = t%u %s t%u\n", binop->destination, 
-                                                mathsexpr_ssa_get_instruction_destination(binop->left),
-                                                ssa_binop_type_as_string(binop->op),
-                                                mathsexpr_ssa_get_instruction_destination(binop->right));
+                    printf("t%u = t%u %s t%u\n", 
+                           binop->destination, 
+                           mathsexpr_ssa_get_instruction_destination(binop->left),
+                           ssa_binop_type_as_string(binop->op),
+                           mathsexpr_ssa_get_instruction_destination(binop->right));
                 }
 
                 break;
@@ -442,13 +460,32 @@ void mathsexpr_ssa_print(SSA* ssa)
             case SSAInstructionType_SSAUnOP:
             {
                 SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
-                printf("t%u = %st%u\n", unop->destination, ssa_unop_type_as_string(unop->op), mathsexpr_ssa_get_instruction_destination(unop->operand));
+                MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting, should be SSAUnOP");
+
+                printf("t%u = %st%u\n", 
+                       unop->destination, 
+                       ssa_unop_type_as_string(unop->op), 
+                       mathsexpr_ssa_get_instruction_destination(unop->operand));
+
                 break;
             }
             case SSAInstructionType_SSAFunction:
             {
                 SSAFunction* func = SSA_CAST(SSAFunction, instruction);
-                printf("t%u = call %s(t%u)\n", func->destination, ssa_func_type_as_string(func->func), mathsexpr_ssa_get_instruction_destination(func->argument));
+                MATHSEXPR_ASSERT(func != NULL, "Wrong type casting, should be SSAFunction");
+
+                if(HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals))
+                {
+                    ssa_print_function_inlined(func);
+                }
+                else
+                {
+                    printf("t%u = call %s(t%u)\n", 
+                           func->destination,
+                           ssa_func_type_as_string(func->func),
+                           mathsexpr_ssa_get_instruction_destination(func->argument));
+                }
+
                 break;
             }
             default:

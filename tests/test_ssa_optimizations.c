@@ -13,7 +13,6 @@
 
 int main(void)
 {
-#if 0
     logger_init();
 
     const char* const exprs[NUM_EXPRS] = {
@@ -88,6 +87,6 @@ int main(void)
     }
 
     logger_release();
-#endif /* if 0 */
+
     return 0;
 }

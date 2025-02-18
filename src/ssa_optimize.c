@@ -74,6 +74,97 @@ bool ssa_optimize_constants_folding(SSA* ssa)
 
                     break;
                 }
+
+                case SSAInstructionType_SSAFunction:
+                {
+                    SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+                    MATHSEXPR_ASSERT(func != NULL, "Wrong type casting, should be SSAFunction");
+
+                    if(func->argument->type == SSAInstructionType_SSALiteral)
+                    {
+                        SSALiteral* lit = SSA_CAST(SSALiteral, func->argument);
+                        MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting, should be SSALiteral");
+
+                        SSAFuncType func_type = func->func;
+                        uint32_t destination = func->destination;
+
+                        memset(instruction, 0, sizeof(SSAFunction));
+                        instruction->type = SSAInstructionType_SSALiteral;
+
+                        SSALiteral* result = SSA_CAST(SSALiteral, instruction);
+                        result->destination = destination;
+
+                        switch(func_type)
+                        {
+                            case SSAFuncType_Abs:
+                                result->value = mathf_abs(lit->value);
+                                break;
+                            case SSAFuncType_Exp:
+                                result->value = mathf_exp(lit->value);
+                                break;
+                            case SSAFuncType_Sqrt:
+                                result->value = mathf_sqrt(lit->value);
+                                break;
+                            case SSAFuncType_Rcp:
+                                result->value = mathf_rcp(lit->value);
+                                break;
+                            case SSAFuncType_Rsqrt:
+                                result->value = mathf_rsqrt(lit->value);
+                                break;
+                            case SSAFuncType_Log:
+                                result->value = mathf_log(lit->value);
+                                break;
+                            case SSAFuncType_Log2:
+                                result->value = mathf_log2(lit->value);
+                                break;
+                            case SSAFuncType_Log10:
+                                result->value = mathf_log10(lit->value);
+                                break;
+                            case SSAFuncType_Floor:
+                                result->value = mathf_floor(lit->value);
+                                break;
+                            case SSAFuncType_Ceil:
+                                result->value = mathf_ceil(lit->value);
+                                break;
+                            case SSAFuncType_Frac:
+                                result->value = mathf_frac(lit->value);
+                                break;
+                            case SSAFuncType_Acos:
+                                result->value = mathf_acos(lit->value);
+                                break;
+                            case SSAFuncType_Asin:
+                                result->value = mathf_asin(lit->value);
+                                break;
+                            case SSAFuncType_Atan:
+                                result->value = mathf_atan(lit->value);
+                                break;
+                            case SSAFuncType_Cos:
+                                result->value = mathf_cos(lit->value);
+                                break;
+                            case SSAFuncType_Sin:
+                                result->value = mathf_sin(lit->value);
+                                break;
+                            case SSAFuncType_Tan:
+                                result->value = mathf_tan(lit->value);
+                                break;
+                            case SSAFuncType_Cosh:
+                                result->value = mathf_cosh(lit->value);
+                                break;
+                            case SSAFuncType_Sinh:
+                                result->value = mathf_sinh(lit->value);
+                                break;
+                            case SSAFuncType_Tanh:
+                                result->value = mathf_tanh(lit->value);
+                                break;
+                            default:
+                                result->value = 0.0f;
+                        }
+
+                        any_folding = true;
+                    }
+
+                    break;
+                }
             }
         }
 
@@ -102,6 +193,7 @@ bool ssa_optimize_dead_code_elimination(SSA* ssa)
             case SSAInstructionType_SSABinOP:
             {
                 SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+                MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
 
                 uint32_t left_destination = mathsexpr_ssa_get_instruction_destination(binop->left);
                 uint32_t right_destination = mathsexpr_ssa_get_instruction_destination(binop->right);
@@ -120,9 +212,11 @@ bool ssa_optimize_dead_code_elimination(SSA* ssa)
 
                 break;
             }
+
             case SSAInstructionType_SSAUnOP:
             {
                 SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+                MATHSEXPR_ASSERT(unop != NULL, "Wrong casting, should be SSAUnOP");
 
                 uint32_t destination = mathsexpr_ssa_get_instruction_destination(unop->operand);
 
@@ -134,6 +228,23 @@ bool ssa_optimize_dead_code_elimination(SSA* ssa)
 
                 break;
             }
+
+            case SSAInstructionType_SSAFunction:
+            {
+                SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+                MATHSEXPR_ASSERT(func != NULL, "Wrong casting, should be SSAFunction");
+
+                uint32_t destination = mathsexpr_ssa_get_instruction_destination(func->argument);
+
+                hashmap_insert(destinations,
+                               (const void*)&destination,
+                               sizeof(uint32_t),
+                               (void*)&value,
+                               sizeof(int));
+
+                break;
+            }
+
             default:
                 break;
         }
@@ -199,16 +310,19 @@ uint32_t canonicalize_rhs(SSAInstruction* instruction)
         case SSAInstructionType_SSALiteral:
         {
             SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
+            MATHSEXPR_ASSERT(lit != NULL, "Wrong casting, should be SSALiteral");
             return hash_murmur3((const void*)&lit->value, sizeof(float), SEED);
         }
         case SSAInstructionType_SSAVariable:
         {
             SSAVariable* var = SSA_CAST(SSAVariable, instruction);
+            MATHSEXPR_ASSERT(var != NULL, "Wrong casting, should be SSAVariable");
             return hash_murmur3(var->name, var->name_length, SEED);
         }
         case SSAInstructionType_SSABinOP:
         {
             SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+            MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
             uint32_t left_hash = canonicalize_rhs(binop->left);
             uint32_t right_hash = canonicalize_rhs(binop->right);
             uint32_t parts[3] = { left_hash, right_hash, (uint32_t)binop->op };
@@ -217,6 +331,7 @@ uint32_t canonicalize_rhs(SSAInstruction* instruction)
         case SSAInstructionType_SSAUnOP:
         {
             SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+            MATHSEXPR_ASSERT(unop != NULL, "Wrong casting, should be SSAUnOP");
             uint32_t operand_hash = canonicalize_rhs(unop->operand);
             uint32_t parts[2] = { operand_hash, (uint32_t)unop->op };
             return hash_murmur3((const void*)parts, sizeof(parts), SEED);
@@ -224,6 +339,7 @@ uint32_t canonicalize_rhs(SSAInstruction* instruction)
         case SSAInstructionType_SSAFunction:
         {
             SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+            MATHSEXPR_ASSERT(func != NULL, "Wrong casting, should be SSAFunction");
             uint32_t argument_hash = canonicalize_rhs(func->argument);
             uint32_t parts[2] = { argument_hash, (uint32_t)func->func };
             return hash_murmur3((const void*)parts, sizeof(parts), SEED);
@@ -279,6 +395,7 @@ bool ssa_optimize_common_subexpression_elimination(SSA* ssa)
                     case SSAInstructionType_SSABinOP:
                     {
                         SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+                        MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
 
                         if(binop->left == to_replace)
                         {
@@ -294,9 +411,11 @@ bool ssa_optimize_common_subexpression_elimination(SSA* ssa)
 
                         break;
                     }
+
                     case SSAInstructionType_SSAUnOP:
                     {
                         SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+                        MATHSEXPR_ASSERT(unop != NULL, "Wrong casting, should be SSAUnOP");
 
                         if(unop->operand == to_replace)
                         {
@@ -306,6 +425,21 @@ bool ssa_optimize_common_subexpression_elimination(SSA* ssa)
 
                         break;
                     }
+
+                    case SSAInstructionType_SSAFunction:
+                    {
+                        SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+                        MATHSEXPR_ASSERT(func != NULL, "Wrong casting, should be SSAFunction");
+
+                        if(func->argument == to_replace)
+                        {
+                            func->argument = replacement;
+                            any_elimination = true;
+                        }
+
+                        break;
+                    }
+
                     default:
                         break;
                 }
@@ -353,6 +487,7 @@ uint32_t ssa_find_earliest_instruction_use(SSA* ssa, SSAInstruction* instruction
             case SSAInstructionType_SSABinOP:
             {
                 SSABinOP* binop = SSA_CAST(SSABinOP, current_instr);
+                MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
 
                 if(binop->left == instruction || binop->right == instruction) 
                 {
@@ -365,6 +500,7 @@ uint32_t ssa_find_earliest_instruction_use(SSA* ssa, SSAInstruction* instruction
             case SSAInstructionType_SSAUnOP:
             {
                 SSAUnOP* unop = SSA_CAST(SSAUnOP, current_instr);
+                MATHSEXPR_ASSERT(unop != NULL, "Wrong casting, should be SSAUnOP");
 
                 if(unop->operand == instruction) 
                 {
@@ -486,15 +622,29 @@ bool ssa_optimize_refine_destinations(SSA* ssa)
             switch(instr->type)
             {
                 case SSAInstructionType_SSAVariable:
-                    SSA_CAST(SSAVariable, instr)->destination = *new_dest;
+                {
+                    SSAVariable* var = SSA_CAST(SSAVariable, instr);
+                    MATHSEXPR_ASSERT(var != NULL, "Wrong casting, should be SSAVariable");
+                    var->destination = *new_dest;
                     break;
+                }
                 case SSAInstructionType_SSABinOP:
-                    SSA_CAST(SSABinOP, instr)->destination = *new_dest;
+                    SSABinOP* binop = SSA_CAST(SSABinOP, instr);
+                    MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
+                    binop->destination = *new_dest;
                     break;
                 case SSAInstructionType_SSAUnOP:
-                    SSA_CAST(SSAUnOP, instr)->destination = *new_dest;
+                    SSAUnOP* unop = SSA_CAST(SSAUnOP, instr);
+                    MATHSEXPR_ASSERT(unop != NULL, "Wrong casting, should be SSAUnOP");
+                    unop->destination = *new_dest;
                     break;
-                default: break;
+                case SSAInstructionType_SSAFunction:
+                    SSAFunction* func = SSA_CAST(SSAFunction, instr);
+                    MATHSEXPR_ASSERT(func != NULL, "Wrong casting, should be SSAFunction");
+                    func->destination = *new_dest;
+                    break;
+                default: 
+                    break;
             }
         }
     }

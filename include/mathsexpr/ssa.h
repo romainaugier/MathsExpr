@@ -49,7 +49,6 @@ typedef enum {
     SSAFuncType_Acos,
     SSAFuncType_Asin,
     SSAFuncType_Atan,
-    SSAFuncType_Atan2,
     SSAFuncType_Cos,
     SSAFuncType_Sin,
     SSAFuncType_Tan,
