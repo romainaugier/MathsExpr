@@ -100,6 +100,7 @@ typedef struct {
 
 typedef enum {
     SSAFlags_InlineLiterals = 0x1,
+    SSAFlags_HasRegistersAsDestination = 0x2,
 } SSAFlags;
 
 typedef struct {
@@ -109,12 +110,6 @@ typedef struct {
     uint32_t counter;
     uint64_t flags;
 } SSA;
-
-typedef struct {
-    uint32_t destination;
-    uint16_t start;
-    uint16_t end;
-} SSALiveInterval;
 
 MATHSEXPR_API SSA* mathsexpr_ssa_new();
 
@@ -156,10 +151,6 @@ MATHSEXPR_FORCE_INLINE SSAInstruction* mathsexpr_ssa_instruction_at(SSA* ssa, si
 MATHSEXPR_API uint32_t mathsexpr_ssa_get_instruction_destination(SSAInstruction* instruction);
 
 MATHSEXPR_API bool mathsexpr_ssa_from_ast(SSA* ssa, AST* ast);
-
-MATHSEXPR_API void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals, uint32_t* num_intervals);
-
-MATHSEXPR_API void mathsexpr_ssa_print_live_intervals(Vector* intervals);
 
 MATHSEXPR_API void mathsexpr_ssa_print(SSA* ssa);
 

@@ -67,6 +67,7 @@ SSA* mathsexpr_ssa_new()
     new_ssa->instructions = vector_new(128, sizeof(SSAInstruction*));
     new_ssa->counter = 0;
     new_ssa->functions_lookup_table = hashmap_new(128);
+    new_ssa->flags = 0;
 
     ssa_func_lookup_table_init(new_ssa->functions_lookup_table);
 
@@ -365,128 +366,9 @@ uint32_t mathsexpr_ssa_get_instruction_destination(SSAInstruction* instruction)
     }
 }
 
-void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals, uint32_t* num_intervals)
+void ssa_print_binop_inlined(SSABinOP* binop, char reg)
 {
-    *num_intervals = mathsexpr_ssa_num_instructions(ssa);
-
-    for(uint32_t i = 0; i < *num_intervals; i++)
-    {
-        SSALiveInterval interval = { i, 0, 0 };
-        vector_push_back(intervals, &interval);
-    }
-
-    for(uint32_t i = 0; i < *num_intervals; i++)
-    {
-        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
-        
-        switch(instruction->type)
-        {
-            case SSAInstructionType_SSAVariable:
-            {
-                SSAVariable* var = SSA_CAST(SSAVariable, instruction);
-                MATHSEXPR_ASSERT(var != NULL, "Wrong casting, should be SSAVariable");
-
-                uint32_t destination = var->destination;
-
-                SSALiveInterval* var_interval = (SSALiveInterval*)vector_at(intervals, destination);
-
-                var_interval->start = var_interval->start == 0 ? (i + 1) : var_interval->start;
-                var_interval->end = var_interval->end < (i + 1) ? (i + 1) : var_interval->end;
-
-                break;
-            }
-
-            case SSAInstructionType_SSABinOP:
-            {
-                SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
-                MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
-
-                uint32_t destination = binop->destination;
-
-                SSALiveInterval* binop_interval = (SSALiveInterval*)vector_at(intervals, destination);
-
-                binop_interval->start = binop_interval->start == 0 ? (i + 1) : binop_interval->start;
-                binop_interval->end = binop_interval->end < (i + 1) ? (i + 1) : binop_interval->end;
-
-                if(binop->left->type != SSAInstructionType_SSALiteral || !HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals))
-                {
-                    uint32_t left_destination = mathsexpr_ssa_get_instruction_destination(binop->left);
-                    SSALiveInterval* left_interval = (SSALiveInterval*)vector_at(intervals, left_destination);
-                    left_interval->start = left_interval->start == 0 ? (i + 1) : left_interval->start;
-                    left_interval->end = left_interval->end < (i + 1) ? (i + 1) : left_interval->end;
-                }
-
-                if(binop->right->type != SSAInstructionType_SSALiteral || !HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals))
-                {
-                    uint32_t right_destination = mathsexpr_ssa_get_instruction_destination(binop->right);
-                    SSALiveInterval* right_interval = (SSALiveInterval*)vector_at(intervals, right_destination);
-                    right_interval->start = right_interval->start == 0 ? (i + 1) : right_interval->start;
-                    right_interval->end = right_interval->end < (i + 1) ? (i + 1) : right_interval->end;
-                }
-
-                break;
-            }
-
-            case SSAInstructionType_SSAUnOP:
-            {
-                SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
-                MATHSEXPR_ASSERT(unop != NULL, "Wrong casting, should be SSAUnOP");
-
-                uint32_t destination = unop->destination;
-
-                SSALiveInterval* unop_interval = (SSALiveInterval*)vector_at(intervals, destination);
-
-                unop_interval->start = unop_interval->start == 0 ? (i + 1) : unop_interval->start;
-                unop_interval->end = unop_interval->end < (i + 1) ? (i + 1) : unop_interval->end;
-
-                uint32_t operand_destination = mathsexpr_ssa_get_instruction_destination(unop->operand);
-                SSALiveInterval* unop_operand_interval = (SSALiveInterval*)vector_at(intervals, operand_destination);
-                unop_operand_interval->start = unop_operand_interval->start == 0 ? (i + 1) : unop_operand_interval->start;
-                unop_operand_interval->end = unop_operand_interval->end < (i + 1) ? (i + 1) : unop_operand_interval->end;
-
-                break;
-            }
-
-            case SSAInstructionType_SSAFunction:
-            {
-                SSAFunction* func = SSA_CAST(SSAFunction, instruction);
-                MATHSEXPR_ASSERT(func != NULL, "Wrong casting, should be SSAFunction");
-
-                uint32_t destination = func->destination;
-
-                SSALiveInterval* unop_interval = (SSALiveInterval*)vector_at(intervals, destination);
-
-                unop_interval->start = unop_interval->start == 0 ? (i + 1) : unop_interval->start;
-                unop_interval->end = unop_interval->end < (i + 1) ? (i + 1) : unop_interval->end;
-
-                uint32_t argument_destination = mathsexpr_ssa_get_instruction_destination(func->argument);
-
-                SSALiveInterval* func_argument_interval = (SSALiveInterval*)vector_at(intervals, argument_destination);
-
-                func_argument_interval->start = func_argument_interval->start == 0 ? (i + 1) : func_argument_interval->start;
-                func_argument_interval->end = func_argument_interval->end < (i + 1) ? (i + 1) : func_argument_interval->end;
-
-                break;
-            }
-            
-            default:
-                break;
-        }
-    }
-}
-
-void mathsexpr_ssa_print_live_intervals(Vector* intervals)
-{
-    for(uint32_t i = 0; i < vector_size(intervals); i++)
-    {
-        SSALiveInterval* interval = (SSALiveInterval*)vector_at(intervals, i);
-        printf("t%u (%u-%u)\n", interval->destination, (uint32_t)interval->start, (uint32_t)interval->end);
-    }
-}
-
-void ssa_print_binop_inlined(SSABinOP* binop)
-{
-    String fmt_string = string_newf("t%d = ", binop->destination);
+    String fmt_string = string_newf("%c%d = ", reg, binop->destination);
 
     if(binop->left->type == SSAInstructionType_SSALiteral)
     {
@@ -495,7 +377,7 @@ void ssa_print_binop_inlined(SSABinOP* binop)
     }
     else
     {
-        string_appendf(&fmt_string, "t%u", mathsexpr_ssa_get_instruction_destination(binop->left));
+        string_appendf(&fmt_string, "%c%u", reg, mathsexpr_ssa_get_instruction_destination(binop->left));
     }
 
     string_appendf(&fmt_string, " %s ", ssa_binop_type_as_string(binop->op));
@@ -507,7 +389,7 @@ void ssa_print_binop_inlined(SSABinOP* binop)
     }
     else
     {
-        string_appendf(&fmt_string, "t%u", mathsexpr_ssa_get_instruction_destination(binop->right));
+        string_appendf(&fmt_string, "%c%u", reg, mathsexpr_ssa_get_instruction_destination(binop->right));
     }
 
     puts(fmt_string); 
@@ -515,9 +397,9 @@ void ssa_print_binop_inlined(SSABinOP* binop)
     string_free(fmt_string);
 }
 
-void ssa_print_function_inlined(SSAFunction* func)
+void ssa_print_function_inlined(SSAFunction* func, char reg)
 {
-    String fmt_string = string_newf("t%d = call %s", func->destination, ssa_func_type_as_string(func->func));
+    String fmt_string = string_newf("%c%d = call %s", reg, func->destination, ssa_func_type_as_string(func->func));
 
     if(func->argument->type == SSAInstructionType_SSALiteral)
     {
@@ -526,7 +408,7 @@ void ssa_print_function_inlined(SSAFunction* func)
     }
     else
     {
-        string_appendf(&fmt_string, "(t%u)", mathsexpr_ssa_get_instruction_destination(func->argument));
+        string_appendf(&fmt_string, "(%c%u)", reg, mathsexpr_ssa_get_instruction_destination(func->argument));
     }
 
     puts(fmt_string); 
@@ -536,6 +418,8 @@ void ssa_print_function_inlined(SSAFunction* func)
 
 void mathsexpr_ssa_print(SSA* ssa)
 {
+    char reg = HAS_FLAG(ssa->flags, SSAFlags_HasRegistersAsDestination) ? 'R' : 't';
+
     for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
     {
         SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
@@ -546,14 +430,14 @@ void mathsexpr_ssa_print(SSA* ssa)
             {
                 SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
                 MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting, should be SSALiteral");
-                printf("t%u = %.3f\n", lit->destination, lit->value);
+                printf("%c%u = %.3f\n", reg, lit->destination, lit->value);
                 break;
             }
             case SSAInstructionType_SSAVariable:
             {
                 SSAVariable* var = SSA_CAST(SSAVariable, instruction);
                 MATHSEXPR_ASSERT(var != NULL, "Wrong type casting, should be SSAVariable");
-                printf("t%u = %.*s\n", var->destination, var->name_length, var->name);
+                printf("%c%u = %.*s\n", reg, var->destination, var->name_length, var->name);
                 break;
             }
             case SSAInstructionType_SSABinOP:
@@ -563,14 +447,17 @@ void mathsexpr_ssa_print(SSA* ssa)
 
                 if(HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals))
                 {
-                    ssa_print_binop_inlined(binop);
+                    ssa_print_binop_inlined(binop, reg);
                 }
                 else
                 {
-                    printf("t%u = t%u %s t%u\n", 
+                    printf("%c%u = %c%u %s %c%u\n", 
+                           reg,
                            binop->destination, 
+                           reg,
                            mathsexpr_ssa_get_instruction_destination(binop->left),
                            ssa_binop_type_as_string(binop->op),
+                           reg,
                            mathsexpr_ssa_get_instruction_destination(binop->right));
                 }
 
@@ -581,9 +468,11 @@ void mathsexpr_ssa_print(SSA* ssa)
                 SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
                 MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting, should be SSAUnOP");
 
-                printf("t%u = %st%u\n", 
+                printf("%c%u = %s%c%u\n", 
+                       reg,
                        unop->destination, 
                        ssa_unop_type_as_string(unop->op), 
+                       reg,
                        mathsexpr_ssa_get_instruction_destination(unop->operand));
 
                 break;
@@ -595,13 +484,15 @@ void mathsexpr_ssa_print(SSA* ssa)
 
                 if(HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals))
                 {
-                    ssa_print_function_inlined(func);
+                    ssa_print_function_inlined(func, reg);
                 }
                 else
                 {
-                    printf("t%u = call %s(t%u)\n", 
+                    printf("%c%u = call %s(%c%u)\n", 
+                           reg,
                            func->destination,
                            ssa_func_type_as_string(func->func),
+                           reg,
                            mathsexpr_ssa_get_instruction_destination(func->argument));
                 }
 

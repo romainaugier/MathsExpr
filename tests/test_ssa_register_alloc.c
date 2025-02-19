@@ -4,6 +4,7 @@
 
 #include "mathsexpr/parser.h"
 #include "mathsexpr/ssa_optimize.h"
+#include "mathsexpr/ssa_register_alloc.h"
 
 #include "libromano/logger.h"
 
@@ -82,6 +83,24 @@ int main(void)
         printf("Expr%d optimized ssa\n", i + 1);
         mathsexpr_ssa_print(expr_ssa);
 
+        Vector* expr_live_intervals = vector_new(128, sizeof(SSALiveInterval));
+        mathsexpr_ssa_get_live_intervals(expr_ssa, expr_live_intervals);
+
+        mathsexpr_ssa_print_live_intervals(expr_live_intervals);
+
+        if(!mathsexpr_ssa_allocate_registers(expr_ssa))
+        {
+            vector_free(expr_live_intervals);
+            mathsexpr_ssa_destroy(expr_ssa);
+            mathsexpr_ast_destroy(expr_ast);
+            vector_free(expr_tokens);
+
+            return 1;
+        }
+
+        mathsexpr_ssa_print(expr_ssa);
+
+        vector_free(expr_live_intervals);
         mathsexpr_ssa_destroy(expr_ssa);
         mathsexpr_ast_destroy(expr_ast);
         vector_free(expr_tokens);
