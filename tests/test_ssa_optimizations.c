@@ -82,6 +82,13 @@ int main(void)
         printf("Expr%d optimized ssa\n", i + 1);
         mathsexpr_ssa_print(expr_ssa);
 
+        Vector* expr_live_intervals = vector_new(128, sizeof(SSALiveInterval));
+        uint32_t num_intervals = 0;
+        mathsexpr_ssa_get_live_intervals(expr_ssa, expr_live_intervals, &num_intervals);
+
+        mathsexpr_ssa_print_live_intervals(expr_live_intervals);
+
+        vector_free(expr_live_intervals);
         mathsexpr_ssa_destroy(expr_ssa);
         mathsexpr_ast_destroy(expr_ast);
         vector_free(expr_tokens);
