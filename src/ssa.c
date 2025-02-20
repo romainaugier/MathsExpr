@@ -148,6 +148,29 @@ SSAInstruction* mathsexpr_ssa_new_function(SSA* ssa,
     return instruction_ptr;
 }
 
+SSAInstruction* mathsexpr_ssa_new_move(SSA* ssa,
+                                       SSAInstruction* to_move,
+                                       uint32_t destination)
+{
+    SSAMove move = { SSAInstructionType_SSAMove, to_move, destination };
+
+    SSAInstruction* instruction_ptr = (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions_data, &move, sizeof(SSAMove));
+
+    return instruction_ptr;
+}
+
+SSAInstruction* mathsexpr_ssa_new_spill(SSA* ssa,
+                                        SSAInstruction* to_spill,
+                                        uint32_t stack_offset,
+                                        uint32_t destination)
+{
+    SSASpill spill = { SSAInstructionType_SSAMove, to_spill, stack_offset, destination };
+
+    SSAInstruction* instruction_ptr = (SSAInstruction*)mathsexpr_arena_push(&ssa->instructions_data, &spill, sizeof(SSASpill));
+
+    return instruction_ptr;
+}
+
 SSABinOPType ast_binop_to_ssa_binop(ASTBinOPType type)
 {
     switch(type)
@@ -339,30 +362,154 @@ uint32_t mathsexpr_ssa_get_instruction_destination(SSAInstruction* instruction)
         case SSAInstructionType_SSALiteral:
         {
             SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
+            MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting, should be SSALiteral");
             return lit->destination;
         }
         case SSAInstructionType_SSAVariable:
         {
             SSAVariable* var = SSA_CAST(SSAVariable, instruction);
+            MATHSEXPR_ASSERT(var != NULL, "Wrong type casting, should be SSAVariable");
             return var->destination;
         }
         case SSAInstructionType_SSABinOP:
         {
             SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+            MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinop");
             return binop->destination;
         }
         case SSAInstructionType_SSAUnOP:
         {
             SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+            MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting, should be SSAUnop");
             return unop->destination;
         }
         case SSAInstructionType_SSAFunction:
         {
             SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+            MATHSEXPR_ASSERT(func != NULL, "Wrong type casting, should be SSAFunction");
             return func->destination;
+        }
+        case SSAInstructionType_SSAMove:
+        {
+            SSAMove* move = SSA_CAST(SSAMove, instruction);
+            MATHSEXPR_ASSERT(move != NULL, "Wrong type casting, should be SSAMove");
+            return move->destination;
+        }
+        case SSAInstructionType_SSASpill:
+        {
+            SSASpill* spill = SSA_CAST(SSASpill, instruction);
+            MATHSEXPR_ASSERT(spill != NULL, "Wrong type casting, should be SSASpill");
+            return spill->destination;
         }
         default:
             return 0;
+    }
+}
+
+void mathsexpr_ssa_set_instruction_destination(SSAInstruction* instruction,
+                                               uint32_t destination)
+{
+    switch(instruction->type)
+    {
+        case SSAInstructionType_SSALiteral:
+        {
+            SSALiteral* lit = SSA_CAST(SSALiteral, instruction);
+            MATHSEXPR_ASSERT(lit != NULL, "Wrong type casting, should be SSALiteral");
+            lit->destination = destination;
+            break;
+        }
+        case SSAInstructionType_SSAVariable:
+        {
+            SSAVariable* var = SSA_CAST(SSAVariable, instruction);
+            MATHSEXPR_ASSERT(var != NULL, "Wrong type casting, should be SSAVariable");
+            var->destination = destination;
+            break;
+        }
+        case SSAInstructionType_SSABinOP:
+        {
+            SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+            MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
+            binop->destination = destination;
+            break;
+        }
+        case SSAInstructionType_SSAUnOP:
+        {
+            SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+            MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting, should be SSAUnOP");
+            unop->destination = destination;
+            break;
+        }
+        case SSAInstructionType_SSAFunction:
+        {
+            SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+            MATHSEXPR_ASSERT(func != NULL, "Wrong type casting, should be SSAFunction");
+            func->destination = destination;
+            break;
+        }
+        case SSAInstructionType_SSAMove:
+        {
+            SSAMove* move = SSA_CAST(SSAMove, instruction);
+            MATHSEXPR_ASSERT(move != NULL, "Wrong type casting, should be SSAMove");
+            move->destination = destination;
+            break;
+        }
+        case SSAInstructionType_SSASpill:
+        {
+            SSASpill* spill = SSA_CAST(SSASpill, instruction);
+            MATHSEXPR_ASSERT(spill != NULL, "Wrong type casting, should be SSASpill");
+            spill->destination = destination;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void mathsexpr_ssa_replace_instructions_deps(SSA* ssa, 
+                                             SSAInstruction* instruction,
+                                             SSAInstruction* old,
+                                             SSAInstruction* new)
+{
+    switch(instruction->type)
+    {
+        case SSAInstructionType_SSABinOP:
+        {
+            SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+            MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
+            binop->left = binop->left == old ? new : binop->left;
+            binop->right = binop->right == old ? new : binop->right;
+            break;
+        }
+        case SSAInstructionType_SSAUnOP:
+        {
+            SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
+            MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting, should be SSAUnOP");
+            unop->operand = unop->operand == old ? new : unop->operand;
+            break;
+        }
+        case SSAInstructionType_SSAFunction:
+        {
+            SSAFunction* func = SSA_CAST(SSAFunction, instruction);
+            MATHSEXPR_ASSERT(func != NULL, "Wrong type casting, should be SSAFunction");
+            func->argument = func->argument == old ? new : func->argument;
+            break;
+        }
+        case SSAInstructionType_SSAMove:
+        {
+            SSAMove* move = SSA_CAST(SSAMove, instruction);
+            MATHSEXPR_ASSERT(move != NULL, "Wrong type casting, should be SSAMove");
+            move->to_move = move->to_move == old ? new : move->to_move;
+            break;
+        }
+        case SSAInstructionType_SSASpill:
+        {
+            SSASpill* spill = SSA_CAST(SSASpill, instruction);
+            MATHSEXPR_ASSERT(spill != NULL, "Wrong type casting, should be SSASpill");
+            spill->to_spill = spill->to_spill == old ? new : spill->to_spill;
+            break;
+        }
+        default:
+            break;
     }
 }
 
@@ -495,6 +642,32 @@ void mathsexpr_ssa_print(SSA* ssa)
                            reg,
                            mathsexpr_ssa_get_instruction_destination(func->argument));
                 }
+
+                break;
+            }
+            case SSAInstructionType_SSAMove:
+            {
+                SSAMove* move = SSA_CAST(SSAMove, instruction);
+                MATHSEXPR_ASSERT(move != NULL, "Wrong type casting, should be SSAMove");
+
+                printf("%c%u = move %c%u\n", 
+                       reg,
+                       move->destination,
+                       reg,
+                       mathsexpr_ssa_get_instruction_destination(move->to_move));
+
+                break;
+            }
+            case SSAInstructionType_SSASpill:
+            {
+                SSASpill* spill = SSA_CAST(SSASpill, instruction);
+                MATHSEXPR_ASSERT(spill!= NULL, "Wrong type casting, should be SSAMove");
+
+                printf("%c%u -> stack +%u\n", 
+                       reg,
+                       mathsexpr_ssa_get_instruction_destination(spill->to_spill),
+                       reg,
+                       spill->stack_offset);
 
                 break;
             }

@@ -5,17 +5,20 @@
 #include "mathsexpr/ssa_register_alloc.h"
 
 #include "libromano/flag.h"
+#include "libromano/bit.h"
 #include "libromano/logger.h"
 
 void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals)
 {
     for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
     {
-        SSALiveInterval interval = { i, 0, 0 };
+        SSALiveInterval interval = { mathsexpr_ssa_instruction_at(ssa, i), NO_REG, 0, 0, 0 };
         vector_push_back(intervals, &interval);
     }
 
-    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    uint32_t variables_order_of_appearance = 0;
+
+    for(int32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
     {
         SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
         
@@ -24,14 +27,17 @@ void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals)
             case SSAInstructionType_SSAVariable:
             {
                 SSAVariable* var = SSA_CAST(SSAVariable, instruction);
-                MATHSEXPR_ASSERT(var != NULL, "Wrong casting, should be SSAVariable");
+                MATHSEXPR_ASSERT(var != NULL, "Wrong type casting, should be SSAVariable");
 
                 uint32_t destination = var->destination;
 
                 SSALiveInterval* var_interval = (SSALiveInterval*)vector_at(intervals, destination);
 
-                var_interval->start = var_interval->start == 0 ? (i + 1) : var_interval->start;
+                var_interval->start = 1;
                 var_interval->end = var_interval->end < (i + 1) ? (i + 1) : var_interval->end;
+                var_interval->reg = variables_order_of_appearance;
+
+                variables_order_of_appearance++;
 
                 break;
             }
@@ -39,7 +45,7 @@ void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals)
             case SSAInstructionType_SSABinOP:
             {
                 SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
-                MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
+                MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
 
                 uint32_t destination = binop->destination;
 
@@ -70,7 +76,7 @@ void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals)
             case SSAInstructionType_SSAUnOP:
             {
                 SSAUnOP* unop = SSA_CAST(SSAUnOP, instruction);
-                MATHSEXPR_ASSERT(unop != NULL, "Wrong casting, should be SSAUnOP");
+                MATHSEXPR_ASSERT(unop != NULL, "Wrong type casting, should be SSAUnOP");
 
                 uint32_t destination = unop->destination;
 
@@ -90,14 +96,15 @@ void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals)
             case SSAInstructionType_SSAFunction:
             {
                 SSAFunction* func = SSA_CAST(SSAFunction, instruction);
-                MATHSEXPR_ASSERT(func != NULL, "Wrong casting, should be SSAFunction");
+                MATHSEXPR_ASSERT(func != NULL, "Wrong type casting, should be SSAFunction");
 
                 uint32_t destination = func->destination;
 
-                SSALiveInterval* unop_interval = (SSALiveInterval*)vector_at(intervals, destination);
+                SSALiveInterval* func_interval = (SSALiveInterval*)vector_at(intervals, destination);
 
-                unop_interval->start = unop_interval->start == 0 ? (i + 1) : unop_interval->start;
-                unop_interval->end = unop_interval->end < (i + 1) ? (i + 1) : unop_interval->end;
+                func_interval->start = func_interval->start == 0 ? (i + 1) : func_interval->start;
+                func_interval->end = func_interval->end < (i + 1) ? (i + 1) : func_interval->end;
+                func_interval->reg = 0; 
 
                 uint32_t argument_destination = mathsexpr_ssa_get_instruction_destination(func->argument);
 
@@ -105,6 +112,7 @@ void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals)
 
                 func_argument_interval->start = func_argument_interval->start == 0 ? (i + 1) : func_argument_interval->start;
                 func_argument_interval->end = func_argument_interval->end < (i + 1) ? (i + 1) : func_argument_interval->end;
+                func_argument_interval->reg = 0; 
 
                 break;
             }
@@ -113,6 +121,9 @@ void mathsexpr_ssa_get_live_intervals(SSA* ssa, Vector* intervals)
                 break;
         }
     }
+
+    SSALiveInterval* var_interval = (SSALiveInterval*)vector_back(intervals);
+    var_interval->reg = 0;
 }
 
 void mathsexpr_ssa_print_live_intervals(Vector* intervals)
@@ -120,7 +131,18 @@ void mathsexpr_ssa_print_live_intervals(Vector* intervals)
     for(uint32_t i = 0; i < vector_size(intervals); i++)
     {
         SSALiveInterval* interval = (SSALiveInterval*)vector_at(intervals, i);
-        printf("t%u (%u-%u)\n", interval->destination, (uint32_t)interval->start, (uint32_t)interval->end);
+        printf("t%u (%u-%u)",
+               mathsexpr_ssa_get_instruction_destination(interval->instruction),
+               (uint32_t)interval->start, (uint32_t)interval->end);
+
+        if(interval->reg != NO_REG)
+        {
+            printf(" preassigned: %u\n", interval->reg);
+        }
+        else
+        {
+            printf("\n");
+        }
     }
 }
 
@@ -129,84 +151,255 @@ int ssa_compare_live_intervals(const void* a, const void* b)
     SSALiveInterval* ia = (SSALiveInterval*)a;
     SSALiveInterval* ib = (SSALiveInterval*)b;
 
+    if(ia->reg != NO_REG)
+    {
+        if(ib->reg != NO_REG)
+        {
+            return 0;
+        }
+
+        return -1;
+    }
+    else if(ib->reg != NO_REG)
+    {
+        return 1;
+    }
+
     return ia->end - ib->end;
 }
 
-void ssa_find_preassigned_registers(SSA* ssa, HashMap* preassigned_registers)
+SSALiveInterval* ssa_get_operand_interval(SSA* ssa, SSAInstruction* instr, Vector* intervals) 
 {
-    const uint32_t register_zero = 0;
-
-    uint32_t variables_order_of_appearance = 0;
-
-    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    if(instr->type == SSAInstructionType_SSALiteral && HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals)) 
     {
-        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+        return NULL;
+    }
 
-        switch(instruction->type)
+    for(uint32_t i = 0; i < vector_size(intervals); i++)
+    {
+        SSALiveInterval* interval = (SSALiveInterval*)vector_at(intervals, i);
+
+        if(interval->instruction == instr)
         {
-            case SSAInstructionType_SSAVariable:
-            {
-                hashmap_insert(preassigned_registers,
-                               &instruction,
-                               sizeof(SSAInstruction*),
-                               &variables_order_of_appearance,
-                               sizeof(uint32_t));
-
-                variables_order_of_appearance++;
-
-                break;
-            }
-
-            case SSAInstructionType_SSAFunction:
-            {
-                SSAFunction* func = SSA_CAST(SSAFunction, instruction);
-
-                hashmap_insert(preassigned_registers,
-                               &instruction,
-                               sizeof(SSAInstruction*),
-                               &register_zero,
-                               sizeof(uint32_t));
-
-                hashmap_insert(preassigned_registers,
-                               &func->argument,
-                               sizeof(SSAInstruction*),
-                               &register_zero,
-                               sizeof(uint32_t));
-
-                break;
-            }
-
-            default:
-                break;
+            return interval;
         }
     }
 
-    SSAInstruction* last_instruction = mathsexpr_ssa_instruction_at(ssa,
-                                                                    mathsexpr_ssa_num_instructions(ssa) - 1);
-
-    hashmap_insert(preassigned_registers,
-                   &last_instruction,
-                   sizeof(SSAInstruction*),
-                   &register_zero,
-                   sizeof(uint32_t));
+    return NULL;
 }
 
-bool mathsexpr_ssa_allocate_registers(SSA* ssa)
+void ssa_find_last_uses(SSA* ssa, Vector* intervals)
 {
+    for(int32_t i = mathsexpr_ssa_num_instructions(ssa) - 1; i >= 0; i--)
+    {
+        SSAInstruction* instr = mathsexpr_ssa_instruction_at(ssa, i);
+        
+        if(instr->type == SSAInstructionType_SSABinOP) 
+        {
+            SSABinOP* binop = SSA_CAST(SSABinOP, instr);
+            MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
+            
+            if(!HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals) || binop->left->type != SSAInstructionType_SSALiteral) 
+            {
+                SSALiveInterval* left = ssa_get_operand_interval(ssa, binop->left, intervals);
+                left->last_use = left->last_use == 0 ? i : left->last_use;
+            }
+            
+            if(!HAS_FLAG(ssa->flags, SSAFlags_InlineLiterals) || binop->right->type != SSAInstructionType_SSALiteral)
+            {
+                SSALiveInterval* right = ssa_get_operand_interval(ssa, binop->right, intervals);
+                right->last_use = right->last_use == 0 ? i : right->last_use;
+            }
+        }
+    }
+}
+
+typedef struct {
+    uint32_t first;
+    uint32_t second;
+} ConflictGroup;
+
+bool mathsexpr_ssa_allocate_registers(SSA* ssa, uint32_t num_registers)
+{
+    if(num_registers > 64)
+    {
+        logger_log_error("Cannot allocate to more than 64 registers");
+        return false;
+    }
+
     if(HAS_FLAG(ssa->flags, SSAFlags_HasRegistersAsDestination))
     {
         logger_log_error("SSA has already been allocated registers");
         return false;
     }
 
-    HashMap* preassigned_registers = hashmap_new(mathsexpr_ssa_num_instructions(ssa));
     Vector* live_intervals = vector_new(mathsexpr_ssa_num_instructions(ssa), sizeof(SSALiveInterval));
-
-    ssa_find_preassigned_registers(ssa, preassigned_registers);
     mathsexpr_ssa_get_live_intervals(ssa, live_intervals);
+    vector_sort(live_intervals, ssa_compare_live_intervals);
+
+    uint64_t* register_usage = (uint64_t*)mem_alloca(vector_size(live_intervals) * sizeof(uint64_t));
+    memset(register_usage, 0, vector_size(live_intervals) * sizeof(uint64_t));
+
+    for(uint32_t i = 0; i < vector_size(live_intervals); i++)
+    {
+        SSALiveInterval* current = (SSALiveInterval*)vector_at(live_intervals, i);
+
+        if(current->reg != NO_REG)
+        {
+            for(uint32_t j = (current->start - 1); j < current->end; j++)
+            {
+                SET_BIT64(register_usage[j], current->reg);
+            }
+        }
+    }
+
+    while(true)
+    {
+        ConflictGroup conflict;
+        bool any_conflict = false;
+
+        for(uint32_t i = 0; i < vector_size(live_intervals); i++)
+        {
+            SSALiveInterval* current = (SSALiveInterval*)vector_at(live_intervals, i);
+            
+            if(current->reg != NO_REG)
+            {
+                for(uint32_t j = 0; j < i; j++)
+                {
+                    SSALiveInterval* other = (SSALiveInterval*)vector_at(live_intervals, j);
+
+                    if(other->reg == current->reg && 
+                       current->start < other->end && 
+                       current->end > other->start)
+                    {
+                        uint32_t first, second;
+
+                        if((current->end - current->start) <= (other->end - other->start)) 
+                        {
+                            conflict.first = i;
+                            conflict.second = j;
+                        } 
+                        else 
+                        {
+                            conflict.first = j;
+                            conflict.second = i;
+                        }
+
+                        any_conflict = true;
+
+                        goto resolve_conflict;
+                    }
+                }
+            }
+        }
+
+resolve_conflict:
+        if(any_conflict)
+        {
+            SSALiveInterval* conflicting = (SSALiveInterval*)vector_at(live_intervals, conflict.second);
+
+            uint32_t move_point = conflicting->start;
+            uint32_t new_reg = ctz_u64(~register_usage[move_point]);
+
+            if(new_reg < num_registers)
+            {
+                SSAInstruction* move = mathsexpr_ssa_new_move(ssa, conflicting->instruction, new_reg);
+                SSALiveInterval move_interval = { move, new_reg, move_point + 1, conflicting->end };
+
+                for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+                {
+                    SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+                    mathsexpr_ssa_replace_instructions_deps(ssa, instruction, conflicting->instruction, move);
+                }
+
+                conflicting->end = move_point + 1;
+
+                for(uint32_t i = move_point; i < conflicting->end; i++)
+                {
+                    SET_BIT64(register_usage[i], new_reg);
+                }
+
+                vector_insert(ssa->instructions, &move, move_point);
+                vector_insert(live_intervals, &move_interval, 0);
+            }
+            else
+            {
+                conflicting->reg = NO_REG;
+                vector_free(live_intervals);
+                logger_log_error("Register pressure too high in conflict resolution, need to spill");
+                return false;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    ssa_find_last_uses(ssa, live_intervals);
+
+    uint32_t stack_offset = 0;
+    uint32_t stack_size = 0;
+
+    for(uint32_t i = 0; i < vector_size(live_intervals); i++)
+    {
+        SSALiveInterval* current = (SSALiveInterval*)vector_at(live_intervals, i);
+
+        if(current->reg != NO_REG)
+        {
+            mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+            continue;
+        }
+
+        if(current->instruction->type == SSAInstructionType_SSABinOP)
+        {
+            SSABinOP* binop = SSA_CAST(SSABinOP, current->instruction);
+            MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
+
+            SSALiveInterval* left = ssa_get_operand_interval(ssa, binop->left, live_intervals);
+            SSALiveInterval* right = ssa_get_operand_interval(ssa, binop->right, live_intervals);
+
+            if(left && left->last_use <= current->start) 
+            {
+                current->reg = left->reg;
+                mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+                continue;
+            }
+            else if(right && right->last_use <= current->start) 
+            {
+                current->reg = right->reg;
+                mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+                continue;
+            }
+        }
+
+        uint64_t used = 0;
+
+        for(uint32_t j = (current->start - 1); j < current->end; j++)
+        {
+            used |= register_usage[j];
+        }
+
+        if(~used)
+        {
+            current->reg = ctz_u64(~used);
+
+            for(uint32_t j = (current->start - 1); j < current->end; j++)
+            {
+                SET_BIT64(register_usage[j], current->reg);
+            }
+        }
+        else
+        {
+            logger_log_error("Register pressure too high, need to spill");
+            vector_free(live_intervals);
+            return false;
+        }
+
+        mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+    }
 
     vector_free(live_intervals);
-    hashmap_free(preassigned_registers);
 
     SET_FLAG(ssa->flags, SSAFlags_HasRegistersAsDestination);
 

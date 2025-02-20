@@ -23,7 +23,7 @@ int main(void)
         "4 * x ^ 2 + 7 * x + 2",
         "9 + 24 / (cos(7 - 3))",
         "(0.5 + 18 * x * sin(-34 - 4 * x)) ^ 0.5",
-        "-3 + 6",
+        "cos(a * b) + 18 * c / sqrt(d * e) + 4.0",
         "cos(tan(18 * x)) * a + 5.0 - b / (18 * x)"
     };
 
@@ -61,7 +61,6 @@ int main(void)
             return 1;
         }
 
-        printf("Expr%d ssa\n", i + 1);
         SSA* expr_ssa = mathsexpr_ssa_new();
 
         if(!mathsexpr_ssa_from_ast(expr_ssa, expr_ast))
@@ -76,31 +75,24 @@ int main(void)
             return 1;
         }
 
-        mathsexpr_ssa_print(expr_ssa);
-
         mathsexpr_ssa_optimize(expr_ssa, SSAOptimizationFlags_All);
 
         printf("Expr%d optimized ssa\n", i + 1);
         mathsexpr_ssa_print(expr_ssa);
 
-        Vector* expr_live_intervals = vector_new(128, sizeof(SSALiveInterval));
-        mathsexpr_ssa_get_live_intervals(expr_ssa, expr_live_intervals);
-
-        mathsexpr_ssa_print_live_intervals(expr_live_intervals);
-
-        if(!mathsexpr_ssa_allocate_registers(expr_ssa))
+        if(!mathsexpr_ssa_allocate_registers(expr_ssa, 8))
         {
-            vector_free(expr_live_intervals);
             mathsexpr_ssa_destroy(expr_ssa);
             mathsexpr_ast_destroy(expr_ast);
             vector_free(expr_tokens);
+            logger_release();
 
             return 1;
         }
 
+        printf("Expr%d ssa with allocated registers\n", i + 1);
         mathsexpr_ssa_print(expr_ssa);
 
-        vector_free(expr_live_intervals);
         mathsexpr_ssa_destroy(expr_ssa);
         mathsexpr_ast_destroy(expr_ast);
         vector_free(expr_tokens);

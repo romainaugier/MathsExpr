@@ -19,6 +19,8 @@ typedef enum {
     SSAInstructionType_SSABinOP = 3,
     SSAInstructionType_SSAUnOP = 4,
     SSAInstructionType_SSAFunction = 5,
+    SSAInstructionType_SSAMove = 6,
+    SSAInstructionType_SSASpill = 7,
 } SSAInstructionType;
 
 typedef enum {
@@ -96,6 +98,19 @@ typedef struct {
     uint32_t destination;
 } SSAFunction;
 
+typedef struct {
+    SSAInstruction base;
+    SSAInstruction* to_move;
+    uint32_t destination;
+} SSAMove;
+
+typedef struct {
+    SSAInstruction base;
+    SSAInstruction* to_spill;
+    uint32_t stack_offset;
+    uint32_t destination;
+} SSASpill;
+
 #define SSA_CAST(__type__, __instruction__) ((__type__*)((__instruction__)->type == SSAInstructionType_##__type__ ? __instruction__ : NULL))
 
 typedef enum {
@@ -138,6 +153,15 @@ MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_function(SSA* ssa,
                                                          SSAInstruction* argument,
                                                          uint32_t destination);
 
+MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_move(SSA* ssa,
+                                                     SSAInstruction* to_move,
+                                                     uint32_t destination);
+
+MATHSEXPR_API SSAInstruction* mathsexpr_ssa_new_spill(SSA* ssa,
+                                                      SSAInstruction* to_spill,
+                                                      uint32_t stack_offset,
+                                                      uint32_t destination);
+
 MATHSEXPR_FORCE_INLINE size_t mathsexpr_ssa_num_instructions(SSA* ssa)
 {
     return vector_size(ssa->instructions);
@@ -149,6 +173,14 @@ MATHSEXPR_FORCE_INLINE SSAInstruction* mathsexpr_ssa_instruction_at(SSA* ssa, si
 }
 
 MATHSEXPR_API uint32_t mathsexpr_ssa_get_instruction_destination(SSAInstruction* instruction);
+
+MATHSEXPR_API void mathsexpr_ssa_set_instruction_destination(SSAInstruction* instruction,
+                                                             uint32_t destination);
+
+MATHSEXPR_API void mathsexpr_ssa_replace_instructions_deps(SSA* ssa, 
+                                                           SSAInstruction* instruction,
+                                                           SSAInstruction* old,
+                                                           SSAInstruction* new);
 
 MATHSEXPR_API bool mathsexpr_ssa_from_ast(SSA* ssa, AST* ast);
 
