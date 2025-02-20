@@ -186,6 +186,8 @@ MATHSEXPR_API bool mathsexpr_ssa_from_ast(SSA* ssa, AST* ast);
 
 MATHSEXPR_API void mathsexpr_ssa_print(SSA* ssa);
 
+MATHSEXPR_API const char* mathsexpr_ssa_func_type_as_string(SSAFuncType type);
+
 MATHSEXPR_API void mathsexpr_ssa_destroy(SSA* ssa);
 
 MATHSEXPR_CPP_END

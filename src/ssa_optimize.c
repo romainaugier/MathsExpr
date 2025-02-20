@@ -632,6 +632,15 @@ bool ssa_optimize_refine_destinations(SSA* ssa)
                     SSABinOP* binop = SSA_CAST(SSABinOP, instr);
                     MATHSEXPR_ASSERT(binop != NULL, "Wrong casting, should be SSABinOP");
                     binop->destination = *new_dest;
+
+                    if(binop->left->type == SSAInstructionType_SSALiteral &&
+                       (binop->op != SSABinOPType_Div && binop->op != SSABinOPType_Sub))
+                    {
+                        SSAInstruction* tmp = binop->left;
+                        binop->left = binop->right;
+                        binop->right = tmp;
+                    }
+
                     break;
                 case SSAInstructionType_SSAUnOP:
                     SSAUnOP* unop = SSA_CAST(SSAUnOP, instr);

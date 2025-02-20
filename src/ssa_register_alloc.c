@@ -237,7 +237,9 @@ bool mathsexpr_ssa_allocate_registers(SSA* ssa, uint32_t num_registers)
     mathsexpr_ssa_get_live_intervals(ssa, live_intervals);
     vector_sort(live_intervals, ssa_compare_live_intervals);
 
-    uint64_t* register_usage = (uint64_t*)mem_alloca(vector_size(live_intervals) * sizeof(uint64_t));
+    size_t num_register_usage = vector_size(live_intervals);
+
+    uint64_t* register_usage = (uint64_t*)mem_alloca(num_register_usage * sizeof(uint64_t));
     memset(register_usage, 0, vector_size(live_intervals) * sizeof(uint64_t));
 
     for(uint32_t i = 0; i < vector_size(live_intervals); i++)
@@ -348,6 +350,12 @@ resolve_conflict:
         if(current->reg != NO_REG)
         {
             mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+
+            for(uint32_t j = (current->start - 1); j < current->end; j++)
+            {
+                SET_BIT64(register_usage[j], current->reg);
+            }
+
             continue;
         }
 
@@ -363,12 +371,24 @@ resolve_conflict:
             {
                 current->reg = left->reg;
                 mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+
+                for(uint32_t j = (current->start - 1); j < current->end; j++)
+                {
+                    SET_BIT64(register_usage[j], current->reg);
+                }
+
                 continue;
             }
             else if(right && right->last_use <= current->start) 
             {
                 current->reg = right->reg;
                 mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+
+                for(uint32_t j = (current->start - 1); j < current->end; j++)
+                {
+                    SET_BIT64(register_usage[j], current->reg);
+                }
+
                 continue;
             }
         }
@@ -397,6 +417,41 @@ resolve_conflict:
         }
 
         mathsexpr_ssa_set_instruction_destination(current->instruction, current->reg);
+    }
+
+    for(uint32_t i = 0; i < mathsexpr_ssa_num_instructions(ssa); i++)
+    {
+        SSAInstruction* instruction = mathsexpr_ssa_instruction_at(ssa, i);
+
+        if(instruction->type == SSAInstructionType_SSABinOP)
+        {
+            SSABinOP* binop = SSA_CAST(SSABinOP, instruction);
+            MATHSEXPR_ASSERT(binop != NULL, "Wrong type casting, should be SSABinOP");
+
+            SSALiveInterval* interval = ssa_get_operand_interval(ssa, instruction, live_intervals);
+
+            uint64_t used = 0;
+
+            for(uint32_t j = (interval->start - 1); j < interval->end; j++)
+            {
+                used |= register_usage[j];
+            }
+
+            if(binop->left->type == SSAInstructionType_SSALiteral)
+            {
+                SSALiteral* lit = SSA_CAST(SSALiteral, binop->left);
+                uint64_t lit_reg = ctz_u64(~used);
+                lit->destination = lit_reg;
+                SET_BIT64(register_usage[interval->end - 1], lit_reg);
+            }
+            else if(binop->right->type == SSAInstructionType_SSALiteral)
+            {
+                SSALiteral* lit = SSA_CAST(SSALiteral, binop->right);
+                uint64_t lit_reg = ctz_u64(~used);
+                lit->destination = lit_reg;
+                SET_BIT64(register_usage[interval->end - 1], lit_reg);
+            }
+        }
     }
 
     vector_free(live_intervals);

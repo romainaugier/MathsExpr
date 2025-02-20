@@ -306,7 +306,7 @@ const char* ssa_unop_type_as_string(SSAUnOPType type)
     }
 }
 
-const char* ssa_func_type_as_string(SSAFuncType type)
+const char* mathsexpr_ssa_func_type_as_string(SSAFuncType type)
 {
     switch(type)
     {
@@ -521,6 +521,11 @@ void ssa_print_binop_inlined(SSABinOP* binop, char reg)
     {
         SSALiteral* lit = SSA_CAST(SSALiteral, binop->left);
         string_appendf(&fmt_string, "%.3f", lit->value);
+
+        if(reg == 'R')
+        {
+            string_appendf(&fmt_string, " (%c%u)", reg, mathsexpr_ssa_get_instruction_destination(binop->left));
+        }
     }
     else
     {
@@ -533,6 +538,11 @@ void ssa_print_binop_inlined(SSABinOP* binop, char reg)
     {
         SSALiteral* lit = SSA_CAST(SSALiteral, binop->right);
         string_appendf(&fmt_string, "%.3f", lit->value);
+
+        if(reg == 'R')
+        {
+            string_appendf(&fmt_string, " (%c%u)", reg, mathsexpr_ssa_get_instruction_destination(binop->right));
+        }
     }
     else
     {
@@ -546,7 +556,7 @@ void ssa_print_binop_inlined(SSABinOP* binop, char reg)
 
 void ssa_print_function_inlined(SSAFunction* func, char reg)
 {
-    String fmt_string = string_newf("%c%d = call %s", reg, func->destination, ssa_func_type_as_string(func->func));
+    String fmt_string = string_newf("%c%d = call %s", reg, func->destination, mathsexpr_ssa_func_type_as_string(func->func));
 
     if(func->argument->type == SSAInstructionType_SSALiteral)
     {
@@ -638,7 +648,7 @@ void mathsexpr_ssa_print(SSA* ssa)
                     printf("%c%u = call %s(%c%u)\n", 
                            reg,
                            func->destination,
-                           ssa_func_type_as_string(func->func),
+                           mathsexpr_ssa_func_type_as_string(func->func),
                            reg,
                            mathsexpr_ssa_get_instruction_destination(func->argument));
                 }
