@@ -68,9 +68,9 @@ MATHSEXPR_FORCE_INLINE uint32_t consume_symbol(std::string_view s)
     return start;
 }
 
-std::tuple<bool, MELexerTokens> lexer_lex_expression(std::string_view expression) noexcept
+std::tuple<bool, LexerTokens> lexer_lex_expression(std::string_view expression) noexcept
 {
-    MELexerTokens tokens;
+    LexerTokens tokens;
 
     while(!expression.empty())
     {
@@ -84,7 +84,7 @@ std::tuple<bool, MELexerTokens> lexer_lex_expression(std::string_view expression
                 return std::make_tuple(false, std::move(tokens));
             }
 
-            tokens.emplace_back(expression.substr(0, lit_size), MELexerTokenType::MELiteral);
+            tokens.emplace_back(expression.substr(0, lit_size), LexerTokenType::Literal);
 
             expression.remove_prefix(lit_size);
         }
@@ -98,14 +98,14 @@ std::tuple<bool, MELexerTokens> lexer_lex_expression(std::string_view expression
                 return std::make_tuple(false, std::move(tokens));
             }
 
-            tokens.emplace_back(expression.substr(0, sym_size), MELexerTokenType::MESymbol);
+            tokens.emplace_back(expression.substr(0, sym_size), LexerTokenType::Symbol);
 
             expression.remove_prefix(sym_size);
         }
         /* Operator */
         else if(is_operator(static_cast<int>(expression.front())))
         {
-            tokens.emplace_back(expression.substr(0, 1), MELexerTokenType::MEOperator);
+            tokens.emplace_back(expression.substr(0, 1), LexerTokenType::Operator);
 
             expression.remove_prefix(1);
         }
@@ -113,8 +113,8 @@ std::tuple<bool, MELexerTokens> lexer_lex_expression(std::string_view expression
         else if(is_paren(static_cast<int>(expression.front())))
         {
             tokens.emplace_back(expression.substr(0, 1), 
-                                expression.front() == '(' ? MELexerTokenType::MELParen : 
-                                                            MELexerTokenType::MERParen);
+                                expression.front() == '(' ? LexerTokenType::LParen : 
+                                                            LexerTokenType::RParen);
 
             expression.remove_prefix(1);
         }
@@ -154,22 +154,22 @@ const char* lexer_token_type_to_string(const uint32_t type) noexcept
 {
     switch(type)
     {
-        case MESymbol: 
+        case Symbol: 
             return "SYMBOL";
-        case MELiteral: 
+        case Literal: 
             return "LITERAL";
-        case MEOperator: 
+        case Operator: 
             return "OPERATOR";
-        case MELParen: 
+        case LParen: 
             return "LPAREN";
-        case MERParen: 
+        case RParen: 
             return "RPAREN";
         default:
             return "UNKNOWN";
     }
 }
 
-void lexer_print_tokens(const MELexerTokens& tokens) noexcept
+void lexer_print_tokens(const LexerTokens& tokens) noexcept
 {
     static std::ostream_iterator<char> out(std::cout);
 
