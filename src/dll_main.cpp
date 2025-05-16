@@ -10,22 +10,14 @@
 #include <Windows.h>
 #endif // defined(MATHSEXPR_WIN)
 
-/* 
-   In this source file we execute all functions that need to be executed at runtime to check and
-   set some global variables (for simd vectorization, cpu frequency for profiling...) 
-
-   lib_entry is executed on dlopen / LoadLibrary
-   lib_exit is executed on dlclose / CloseLibrary
-*/
-
-void MATHSEXPR_LIB_ENTRY lib_entry(void)
+void MATHSEXPR_LIB_ENTRY lib_entry() noexcept
 {
 #if MATHSEXPR_DEBUG
     mathsexpr::log_debug("mathsexpr entry");
 #endif // MATHSEXPR_DEBUG
 }
 
-void MATHSEXPR_LIB_EXIT lib_exit(void)
+void MATHSEXPR_LIB_EXIT lib_exit() noexcept
 {
 #if MATHSEXPR_DEBUG
     mathsexpr::log_debug("mathsexpr exit");
