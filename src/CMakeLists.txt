@@ -5,13 +5,11 @@
 include(GNUInstallDirs)
 include(target_options)
 
-file(GLOB_RECURSE src_files *.c)
-
-include_directories(${libromano_INCLUDE_DIR})
+file(GLOB_RECURSE src_files *.cpp)
 
 add_library(${PROJECT_NAME} SHARED ${src_files})
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
-set_target_properties(${PROJECT_NAME} PROPERTIES C_STANDARD 99)
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 23)
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 
 set_target_options(${PROJECT_NAME})
@@ -22,19 +20,10 @@ endif()
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC MATHSEXPR_BUILD_SHARED)
 
-if(UNIX)
-    target_compile_options(${PROJECT_NAME} PUBLIC "-pthread")
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${MATH_LIBRARY})
-elseif(WIN32)
-    target_link_libraries(${PROJECT_NAME} PUBLIC wsock32 ws2_32 Shlwapi Pathcch PowrProf)
-endif()
-
 target_include_directories(${PROJECT_NAME}
                            PUBLIC
                            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
                            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC libromano::libromano)
 
 install(
     TARGETS ${PROJECT_NAME}

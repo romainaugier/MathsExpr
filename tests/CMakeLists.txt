@@ -4,7 +4,7 @@
 
 include(target_options)
 
-file(GLOB_RECURSE TEST_FILES *.c)
+file(GLOB_RECURSE TEST_FILES *.cpp)
 
 foreach(test_file ${TEST_FILES})
     get_filename_component(TESTNAME ${test_file} NAME_WLE)
@@ -12,6 +12,7 @@ foreach(test_file ${TEST_FILES})
 
     add_executable(${TESTNAME} ${test_file})
     set_target_options(${TESTNAME})
+    set_target_properties(${TESTNAME} PROPERTIES CXX_STANDARD 23)
     target_link_libraries(${TESTNAME} ${PROJECT_NAME})
     
     add_test(${TESTNAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTNAME})
@@ -43,7 +44,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
     )
 endif()
 
-# Copy mathsexpr shared lib to the tests bin directory
+# Copy mathsexpr and other needed shared lib to the tests bin directory
 
 if(WIN32)
     add_custom_command(

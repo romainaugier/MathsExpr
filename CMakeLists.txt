@@ -17,9 +17,6 @@ if(RUN_TESTS EQUAL 1)
     enable_testing()
 endif()
 
-set(libromano_DIR "${CMAKE_SOURCE_DIR}/libromano/install/cmake")
-find_package(libromano REQUIRED)
-
 add_subdirectory(src)
 
 if(RUN_TESTS EQUAL 1)

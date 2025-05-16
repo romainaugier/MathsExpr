@@ -2,7 +2,7 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved. 
 
-#include "mathsexpr/mathsexpr.h"
+#include "mathsexpr/log.h"
 
 #include <stdio.h>
 
@@ -21,14 +21,14 @@
 void MATHSEXPR_LIB_ENTRY lib_entry(void)
 {
 #if MATHSEXPR_DEBUG
-    printf("mathsexpr entry\n");
+    mathsexpr::log_debug("mathsexpr entry");
 #endif // MATHSEXPR_DEBUG
 }
 
 void MATHSEXPR_LIB_EXIT lib_exit(void)
 {
 #if MATHSEXPR_DEBUG
-    printf("mathsexpr exit\n");
+    mathsexpr::log_debug("mathsexpr exit");
 #endif // MATHSEXPR_DEBUG
 }
 

@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: BSD-3-Clause 
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2025 - Present Romain Augier
-// All rights reserved. 
+// All rights reserved.
 
 #pragma once
 
@@ -9,8 +9,9 @@
 
 #if defined(_MSC_VER)
 #define MATHSEXPR_MSVC
-#pragma warning(disable:4711) /* function selected for automatic inline expansion */
+#pragma warning(disable : 4711) /* function selected for automatic inline expansion */
 #define _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 #elif defined(__GNUC__)
 #define MATHSEXPR_GCC
 #elif defined(__clang__)
@@ -36,15 +37,14 @@
 #define MATHSEXPR_VERSION_REVISION 0
 #endif /* !defined(MATHSEXPR_VERSION_REVISION) */
 
-#define MATHSEXPR_VERSION_STR MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_MAJOR)"." \
-                              MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_MINOR)"." \
-                              MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_PATCH)"." \
+#define MATHSEXPR_VERSION_STR                                                                      \
+    MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_MAJOR)                                                \
+    "." MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_MINOR) "." MATHSEXPR_STRIFY_MACRO(                \
+        MATHSEXPR_VERSION_PATCH) "." MATHSEXPR_STRIFY_MACRO(MATHSEXPR_VERSION_REVISION)
 
-#include <stddef.h>
-#include <stdint.h>
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #if INTPTR_MAX == INT64_MAX || defined(__x86_64__)
 #define MATHSEXPR_X64
@@ -91,7 +91,7 @@
 #define MATHSEXPR_LIB_ENTRY
 #define MATHSEXPR_LIB_EXIT
 #elif defined(MATHSEXPR_GCC)
-#define MATHSEXPR_FORCE_INLINE inline __attribute__((always_inline)) 
+#define MATHSEXPR_FORCE_INLINE inline __attribute__((always_inline))
 #define MATHSEXPR_LIB_ENTRY __attribute__((constructor))
 #define MATHSEXPR_LIB_EXIT __attribute__((destructor))
 #elif defined(MATHSEXPR_CLANG)
@@ -100,11 +100,31 @@
 #define MATHSEXPR_LIB_EXIT __attribute__((destructor))
 #endif /* defined(MATHSEXPR_MSVC) */
 
+#if __cplusplus > 201703
+#define MATHSEXPR_MAYBE_UNUSED [[maybe_unused]]
+#else
+#define MATHSEXPR_MAYBE_UNUSED
+#endif /* */
+
 #if defined(MATHSEXPR_BUILD_SHARED)
 #define MATHSEXPR_API MATHSEXPR_EXPORT
 #else
 #define MATHSEXPR_API MATHSEXPR_IMPORT
 #endif /* defined(MATHSEXPR_BUILD_SHARED) */
+
+#if defined __cplusplus
+#define MATHSEXPR_CPP_ENTER                                                                        \
+    extern "C"                                                                                     \
+    {
+#define MATHSEXPR_CPP_END }
+#else
+#define MATHSEXPR_CPP_ENTER
+#define MATHSEXPR_CPP_END
+#endif /* DEFINED __cplusplus */
+
+#if !defined NULL
+#define NULL (void*)0
+#endif /* !defined NULL */
 
 #if defined(MATHSEXPR_WIN)
 #define MATHSEXPR_FUNCTION __FUNCTION__
@@ -112,21 +132,34 @@
 #define MATHSEXPR_FUNCTION __PRETTY_FUNCTION__
 #endif /* MATHSEXPR_WIN */
 
-#define CONCAT_(prefix, suffix)     prefix##suffix
-#define CONCAT(prefix, suffix)      CONCAT_(prefix, suffix)
+#define CONCAT_(prefix, suffix) prefix##suffix
+#define CONCAT(prefix, suffix) CONCAT_(prefix, suffix)
 
-#define MATHSEXPR_ASSERT(expr, message) if(!(expr)) { fprintf(stderr, "Assertion failed in file %s at line %d: %s", __FILE__, __LINE__, message); abort(); }
+#define MATHSEXPR_ASSERT(expr, message)                                                            \
+    if(!(expr))                                                                                    \
+    {                                                                                              \
+        std::fprintf(stderr,                                                                       \
+                     "Assertion failed in file %s at line %d: %s",                                 \
+                     __FILE__,                                                                     \
+                     __LINE__,                                                                     \
+                     message);                                                                     \
+        std::abort();                                                                              \
+    }
 
-#define MATHSEXPR_STATIC_ASSERT(expr)        \
-    struct CONCAT(__outscope_assert_, __COUNTER__)      \
-    {                                                   \
-        char                                            \
-        outscope_assert                                 \
-        [2*(expr)-1];                                   \
-                                                        \
-    } CONCAT(__outscope_assert_, __COUNTER__)
+#define MATHSEXPR_STATIC_ASSERT(expr, message) static_assert(expr, message)
+#define MATHSEXPR_NOT_IMPLEMENTED                                                                  \
+    std::fprintf(stderr,                                                                           \
+                 "Called function %s that is not implemented (%s:%d)",                             \
+                 ROMANORENDER_FUNCTION,                                                            \
+                 __FILE__,                                                                         \
+                 __LINE__);                                                                        \
+    std::exit(1)
 
-#define MATHSEXPR_NOT_IMPLEMENTED fprintf(stderr, "Function " MATHSEXPR_FUNCTION " not implemented"); exit(1);
+#define MATHSEXPR_NON_COPYABLE(__class__)                                                          \
+    __class__(const __class__&) = delete;                                                          \
+    __class__(__class__&&) = delete;                                                               \
+    const __class__& operator=(const __class__&) = delete;                                         \
+    void operator=(__class__&&) = delete;
 
 #if defined(MATHSEXPR_MSVC)
 #define MATHSEXPR_PACKED_STRUCT(__struct__) __pragma(pack(push, 1)) __struct__ __pragma(pack(pop))
@@ -137,11 +170,11 @@
 #endif /* defined(MATHSEXPR_MSVC) */
 
 #if defined(MATHSEXPR_MSVC)
-#define dump_struct(s) 
+#define dump_struct(s)
 #elif defined(MATHSEXPR_CLANG)
 #define dump_struct(s) __builtin_dump_struct(s, printf)
 #elif defined(MATHSEXPR_GCC)
-#define dump_struct(s) 
+#define dump_struct(s)
 #endif /* defined(MATHSEXPR_MSVC) */
 
 #if defined(DEBUG_BUILD)
@@ -150,23 +183,18 @@
 #define MATHSEXPR_DEBUG 0
 #endif /* defined(DEBUG_BUILD) */
 
-#if defined(__cplusplus)
-#define MATHSEXPR_CPP_ENTER extern "C" {
-#define MATHSEXPR_CPP_END }
-#else
-#define MATHSEXPR_CPP_ENTER
-#define MATHSEXPR_CPP_END
-#endif /* defined(__cplusplus) */
-
-#define MATHSEXPR_NAMESPACE_BEGIN namespace mathsexpr {
+#define MATHSEXPR_NAMESPACE_BEGIN                                                                  \
+    namespace mathsexpr\
+    {
 #define MATHSEXPR_NAMESPACE_END }
 
-#define MATHSEXPR_ATEXIT_REGISTER(func, exit)                            \
-        int res_##func = atexit(func);                                              \
-        if(res_##func != 0)                                                         \
-        {                                                                           \
-            fprintf(stderr, "Cannot register function \""#func"\" in atexit");      \
-            if(exit) return exit(1);                                                \
-        }                                                                           
+#define MATHSEXPR_ATEXIT_REGISTER(func, do_exit)                                                   \
+    int res_##func = std::atexit(func);                                                            \
+    if(res_##func != 0)                                                                            \
+    {                                                                                              \
+        std::fprintf(stderr, "Cannot register function \"" #func "\" in atexit");                  \
+        if(do_exit)                                                                                \
+            std::exit(1);                                                                          \
+    }
 
 #endif /* !defined(__MATHSEXPR) */
