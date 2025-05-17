@@ -12,6 +12,7 @@
 #include <memory>
 #include <iostream>
 #include <iterator>
+#include <optional>
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -21,6 +22,8 @@ public:
     virtual ~ASTNode() = default;
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept = 0;
+
+    virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept = 0;
 };
 
 class MATHSEXPR_API ASTNodeVariable : public ASTNode
@@ -33,18 +36,36 @@ public:
     virtual ~ASTNodeVariable() override {}
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept override;
+
+    virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
+    { 
+        return std::nullopt;
+    }
+
+    std::string_view get_name() const noexcept { return this->_name; }
 };
 
 class MATHSEXPR_API ASTNodeLiteral : public ASTNode
 {
+    std::string_view _name;
+
     double _value;
 
 public:
-    ASTNodeLiteral(double value) : _value(value) {}
+    ASTNodeLiteral(double value, std::string_view name) : _name(name), _value(value) {}
 
     virtual ~ASTNodeLiteral() override {}
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept override;
+
+    virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
+    { 
+        return std::nullopt;
+    }
+
+    double get_value() const noexcept { return this->_value; }
+
+    std::string_view get_name() const noexcept { return this->_name; }
 };
 
 class MATHSEXPR_API ASTNodeFunctionCall : public ASTNode
@@ -61,6 +82,15 @@ public:
     virtual ~ASTNodeFunctionCall() override {}
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept override;
+
+    virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
+    { 
+        return this->_arguments;
+    }
+
+    std::string_view get_function_name() const noexcept { return this->_name; }
+
+    size_t get_arguments_count() const noexcept { return this->_arguments.size(); }
 };
 
 enum UnaryOpType : uint32_t
@@ -80,6 +110,11 @@ public:
     virtual ~ASTNodeUnaryOp() override {}
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept override;
+
+    virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
+    {
+        return std::vector<ASTNode*>({ this->_operand }); 
+    }
 };
 
 enum BinaryOpType : uint32_t 
@@ -105,6 +140,11 @@ public:
     virtual ~ASTNodeBinaryOp() override {}
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept override;
+
+    virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
+    {
+        return std::vector<ASTNode*>({ this->_left, this->_right }); 
+    }
 };
 
 class MATHSEXPR_API AST
@@ -117,6 +157,10 @@ private:
 
 public:
     AST() {}
+
+    ASTNode* get_root() noexcept { return this->_root.get(); }
+
+    const ASTNode* get_root() const noexcept { return this->_root.get(); }
 
     void print() const noexcept;
 

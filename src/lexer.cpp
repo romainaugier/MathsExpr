@@ -28,6 +28,11 @@ MATHSEXPR_FORCE_INLINE bool is_paren(unsigned int c)
     return c == '(' | c == ')';
 }
 
+MATHSEXPR_FORCE_INLINE bool is_comma(unsigned int c)
+{
+    return c == ',';
+}
+
 MATHSEXPR_FORCE_INLINE uint32_t consume_literal(std::string_view s)
 {
     const std::string_view orig = s;
@@ -117,6 +122,11 @@ std::tuple<bool, LexerTokens> lexer_lex_expression(std::string_view expression) 
                                                             LexerTokenType::RParen);
 
             expression.remove_prefix(1);
+        }
+        /* Comma (in function calls) */
+        else if(is_comma(static_cast<int>(expression.front())))
+        {
+            tokens.emplace_back(expression.substr(0, 1), LexerTokenType::Comma);
         }
         else
         {

@@ -101,9 +101,107 @@ void AST::print() const noexcept
     }
 }
 
+/* Parsing */
+
+class Parser
+{
+    const LexerTokens& _tokens;
+
+    std::string _error;
+
+    size_t _index;
+
+public:
+    Parser(const LexerTokens& tokens) : _tokens(tokens), _index(0) {}
+
+    MATHSEXPR_FORCE_INLINE void advance() noexcept { this->_index++; }
+
+    MATHSEXPR_FORCE_INLINE bool is_at_end() const noexcept { this->_index >= this->_tokens.size(); }
+
+    MATHSEXPR_FORCE_INLINE std::optional<const LexerToken&> current() const noexcept
+    {
+        if(this->is_at_end())
+        {
+            return std::nullopt;
+        }
+
+        return this->_tokens[this->_index];
+    }
+
+    MATHSEXPR_FORCE_INLINE std::optional<const LexerToken&> peek() const noexcept
+    {
+        if(this->_index >= (this->_tokens.size() - 2))
+        {
+            return std::nullopt;
+        }
+
+        return this->_tokens[this->_index + 1];
+    }
+
+    std::unique_ptr<ASTNode> parse_expression() noexcept
+    {
+        std::unique_ptr<ASTNode> left;
+
+        if(this->current().has_value() && this->current().value().second == LexerTokenType::Symbol)
+        {
+            if(this->peek().has_value() && this->peek().value().second == LexerTokenType::LParen)
+            {
+                left = this->parse_function_call();
+            }
+            else
+            {
+                left = std::make_unique<ASTNodeVariable>(this->current().value().first);
+            }
+        }
+        else if(this->current().has_value() && this->current().value().second == LexerTokenType::Literal)
+        {
+            const std::string_view& lit = this->current().value().first;
+            double result;
+
+            auto [ptr, ec] = std::from_chars(lit.data(), lit.data() + lit.size(), result);
+
+            if(ec != std::errc())
+            {
+                std::format_to(std::back_inserter(this->_error), "Unknown error caught while parsing a literal");
+                return nullptr;
+            }
+
+            left = std::make_unique<ASTNodeLiteral>(result, lit);
+        }
+    }
+
+    std::unique_ptr<ASTNode> parse_function_call() noexcept
+    {
+        if(this->current().has_value() && this->current().value().second != LexerTokenType::Symbol)
+        {
+            return nullptr;
+        }
+
+        std::string_view name = this->current().value().first;
+
+        std::vector<ASTNode*> arguments;
+
+        this->advance();
+
+        while(!this->is_at_end() && this->current().value().second != LexerTokenType::RParen)
+        {
+            std::unique_ptr<ASTNode> expr = this->parse_expression();
+
+            if(expr == nullptr)
+            {
+                return nullptr;
+            }
+        }
+    }
+};
+
 bool AST::build_from_tokens(const LexerTokens& tokens) noexcept
 {
     this->clear();
+
+    Parser parser(tokens);
+
+    this->_root = parser.parse_expression();
 
     return true;
 }

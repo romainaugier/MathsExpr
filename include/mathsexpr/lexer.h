@@ -22,6 +22,8 @@ enum LexerTokenType : uint32_t
     Operator,
     LParen,
     RParen,
+    Comma,
+    EOF,
 };
 
 using LexerToken = std::pair<std::string_view, uint32_t>;
