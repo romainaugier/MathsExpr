@@ -18,6 +18,8 @@ bool Expr::compile() noexcept
     this->_byte_code.clear();
     this->_variables.clear();
 
+    log_debug("Compiling expression: {}", this->_expr);
+
     auto [success, tokens] = lexer_lex_expression(this->_expr);
 
     if(!success)

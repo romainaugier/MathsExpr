@@ -15,15 +15,15 @@ MATHSEXPR_NAMESPACE_BEGIN
 
 MATHSEXPR_FORCE_INLINE bool is_operator(unsigned int c)
 {
-    return c == '+' |
-           c == '-' |
-           c == '*' |
-           c == '/';
+    return (c == '+') |
+           (c == '-') |
+           (c == '*') |
+           (c == '/');
 }
 
 MATHSEXPR_FORCE_INLINE bool is_paren(unsigned int c)
 {
-    return c == '(' | c == ')';
+    return (c == '(') | (c == ')');
 }
 
 MATHSEXPR_FORCE_INLINE bool is_comma(unsigned int c)
@@ -125,6 +125,8 @@ std::tuple<bool, LexerTokens> lexer_lex_expression(std::string_view expression) 
         else if(is_comma(static_cast<int>(expression.front())))
         {
             tokens.emplace_back(expression.substr(0, 1), LexerTokenType::Comma);
+
+            expression.remove_prefix(1);
         }
         else
         {

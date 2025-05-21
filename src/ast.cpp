@@ -3,6 +3,7 @@
 // All rights reserved.
 
 #include "mathsexpr/ast.h"
+#include "mathsexpr/log.h"
 
 #include <format>
 
@@ -203,17 +204,33 @@ public:
                 if(this->peek().type == LexerTokenType::LParen)
                 {
                     this->advance();
+                    this->advance();
 
                     std::vector<std::shared_ptr<ASTNode>> arguments;
 
                     if(this->current().type != LexerTokenType::RParen)
                     {
-                        arguments.push_back(std::move(this->parse_expression()));
+                        std::shared_ptr<ASTNode> arg = this->parse_expression();
+
+                        if(arg == nullptr)
+                        {
+                            return nullptr;
+                        }
+
+                        arguments.push_back(arg);
 
                         while(this->current().type == LexerTokenType::Comma)
                         {
                             this->advance();
-                            arguments.emplace_back(std::move(this->parse_expression()));
+
+                            arg = this->parse_expression();
+
+                            if(arg == nullptr)
+                            {
+                                return nullptr;
+                            }
+
+                            arguments.emplace_back(arg);
                         }
                     }
 
@@ -223,6 +240,8 @@ public:
                 }
                 else
                 {
+                    this->advance();
+
                     return std::make_shared<ASTNodeVariable>(name);
                 }
             }
@@ -247,14 +266,25 @@ public:
                     return nullptr;
                 }
 
-                return std::make_shared<ASTNodeUnaryOp>(this->parse_factor(), ast_unary_op_string_to_type(this->current().data));
+                this->advance();
+
+                std::shared_ptr<ASTNode> factor = this->parse_factor();
+
+                if(factor == nullptr)
+                {
+                    return nullptr;
+                }
+
+                return std::make_shared<ASTNodeUnaryOp>(factor, ast_unary_op_string_to_type(this->current().data));
             }
             default:
+            {
                 std::format_to(std::back_inserter(this->_error),
                                "Unexpected token \"{}\" found when parsing factor",
                                lexer_token_type_to_string(this->current().type));
 
                 return nullptr;
+            }
         }
     }
 
@@ -272,9 +302,16 @@ public:
                 break;
             }
 
+            this->advance();
+
             std::shared_ptr<ASTNode> right = this->parse_factor();
 
-            left = std::make_shared<ASTNodeBinaryOp>(std::move(left), std::move(right), op);
+            if(right == nullptr)
+            {
+                return nullptr;
+            }
+
+            left = std::make_shared<ASTNodeBinaryOp>(left, right, op);
         }
 
         return left;
@@ -294,9 +331,16 @@ public:
                 break;
             }
 
+            this->advance();
+
             std::shared_ptr<ASTNode> right = this->parse_term();
+
+            if(right == nullptr)
+            {
+                return nullptr;
+            }
             
-            left = std::make_shared<ASTNodeBinaryOp>(std::move(left), std::move(right), op);
+            left = std::make_shared<ASTNodeBinaryOp>(left, right, op);
         }
 
         return left;

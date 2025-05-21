@@ -7,9 +7,10 @@
 
 int main(int argc, char** argv)
 {
+    mathsexpr::set_log_level(mathsexpr::LogLevel::Debug);
     mathsexpr::log_info("Starting Expr test");
 
-    const char* expression = "log(2) * 1.0 / x + 4 * y - long_var_name * pow(x, 4)";
+    const char* expression = "log(2 * z) * 1.0 / x + 4 * (34.0 - z) * y - long_var_name * pow(x, 4)";
 
     mathsexpr::Expr expr(expression);
 

@@ -12,6 +12,7 @@
 #include <string>
 #include <unordered_map>
 #include <set>
+#include <vector>
 
 struct string_hash 
 {
