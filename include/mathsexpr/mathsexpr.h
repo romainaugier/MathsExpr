@@ -150,7 +150,7 @@
 #define MATHSEXPR_NOT_IMPLEMENTED                                                                  \
     std::fprintf(stderr,                                                                           \
                  "Called function %s that is not implemented (%s:%d)",                             \
-                 ROMANORENDER_FUNCTION,                                                            \
+                 MATHSEXPR_FUNCTION,                                                               \
                  __FILE__,                                                                         \
                  __LINE__);                                                                        \
     std::exit(1)

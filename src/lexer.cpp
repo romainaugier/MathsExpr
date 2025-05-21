@@ -18,9 +18,7 @@ MATHSEXPR_FORCE_INLINE bool is_operator(unsigned int c)
     return c == '+' |
            c == '-' |
            c == '*' |
-           c == '/' |
-           c == '%' | 
-           c == '^';
+           c == '/';
 }
 
 MATHSEXPR_FORCE_INLINE bool is_paren(unsigned int c)
@@ -141,11 +139,8 @@ uint32_t lexer_get_operator_precedence(char op) noexcept
 {
     switch(op) 
     {
-        case '^':
-            return 4;
         case '*':
         case '/':
-        case '%':         
             return 3;
         case '+':
         case '-':         
@@ -174,6 +169,12 @@ const char* lexer_token_type_to_string(const uint32_t type) noexcept
             return "LPAREN";
         case RParen: 
             return "RPAREN";
+        case EndOfFile:
+            return "ENDOFFILE";
+        case Comma:
+            return "COMMA";
+        case Empty:
+            return "EMPTY";
         default:
             return "UNKNOWN";
     }

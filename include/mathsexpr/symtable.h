@@ -15,6 +15,8 @@
 
 MATHSEXPR_NAMESPACE_BEGIN
 
+static constexpr size_t INVALID_SYMBOL_ID = std::numeric_limits<size_t>::max();
+
 class MATHSEXPR_API Symbol 
 {
     std::string_view _name;
@@ -28,11 +30,15 @@ public:
     std::string_view get_name() const noexcept { return this->_name; }
 
     size_t get_id() const noexcept { return this->_id; }
+
+    bool valid() const noexcept { return this->_id != INVALID_SYMBOL_ID; }
 };
 
 class MATHSEXPR_API SymbolVariable : public Symbol
 {
 public:
+    SymbolVariable() : Symbol("", INVALID_SYMBOL_ID) {}
+
     SymbolVariable(std::string_view name, size_t id) : Symbol(name, id) {}
 };
 
@@ -41,6 +47,8 @@ class MATHSEXPR_API SymbolLiteral : public Symbol
     double _value;
 
 public:
+    SymbolLiteral() : Symbol("", INVALID_SYMBOL_ID) {}
+
     SymbolLiteral(double value, std::string_view name, size_t id) : Symbol(name, id), _value(value) {}
 
     double get_value() const noexcept { return this->_value; }

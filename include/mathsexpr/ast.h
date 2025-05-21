@@ -24,6 +24,8 @@ public:
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept = 0;
 
     virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept = 0;
+
+    virtual int type_id() const noexcept = 0;
 };
 
 class MATHSEXPR_API ASTNodeVariable : public ASTNode
@@ -41,6 +43,10 @@ public:
     { 
         return std::nullopt;
     }
+
+    static constexpr int static_type_id() { return 1; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
 
     std::string_view get_name() const noexcept { return this->_name; }
 };
@@ -63,6 +69,10 @@ public:
         return std::nullopt;
     }
 
+    static constexpr int static_type_id() { return 2; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
+
     double get_value() const noexcept { return this->_value; }
 
     std::string_view get_name() const noexcept { return this->_name; }
@@ -70,14 +80,14 @@ public:
 
 class MATHSEXPR_API ASTNodeFunctionCall : public ASTNode
 {
-    std::vector<ASTNode*> _arguments;
+    std::vector<std::shared_ptr<ASTNode>> _arguments;
 
     std::string_view _name;
 
 public:
-    ASTNodeFunctionCall(std::vector<ASTNode*>& arguments, 
-                        std::string_view name) : _arguments(std::move(arguments)), 
-                                                 _name(name) {}
+    ASTNodeFunctionCall(std::string_view name, 
+                        std::vector<std::shared_ptr<ASTNode>> arguments) : _arguments(std::move(arguments)), 
+                                                                           _name(name) {}
 
     virtual ~ASTNodeFunctionCall() override {}
 
@@ -85,8 +95,19 @@ public:
 
     virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
     { 
-        return this->_arguments;
+        std::vector<ASTNode*> children(this->_arguments.size());
+
+        for(const auto& argument : this->_arguments)
+        {
+            children.push_back(argument.get());
+        }
+
+        return children;
     }
+
+    static constexpr int static_type_id() { return 3; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
 
     std::string_view get_function_name() const noexcept { return this->_name; }
 
@@ -95,17 +116,18 @@ public:
 
 enum UnaryOpType : uint32_t
 {
-    Neg,
+    UnaryOpType_Unknown,
+    UnaryOpType_Neg,
 };
 
 class MATHSEXPR_API ASTNodeUnaryOp : public ASTNode
 {
-    ASTNode* _operand;
+    std::shared_ptr<ASTNode> _operand;
 
     uint32_t _op;
 
 public:
-    ASTNodeUnaryOp(ASTNode* operand, uint32_t op) : _operand(operand), _op(op) {}
+    ASTNodeUnaryOp(std::shared_ptr<ASTNode> operand, uint32_t op) : _operand(std::move(operand)), _op(op) {}
 
     virtual ~ASTNodeUnaryOp() override {}
 
@@ -113,29 +135,34 @@ public:
 
     virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
     {
-        return std::vector<ASTNode*>({ this->_operand }); 
+        return std::vector<ASTNode*>({ this->_operand.get() }); 
     }
+
+    static constexpr int static_type_id() { return 4; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
 };
 
 enum BinaryOpType : uint32_t 
 {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    Pow,
+    BinaryOpType_Unknown,
+    BinaryOpType_Add,
+    BinaryOpType_Sub,
+    BinaryOpType_Mul,
+    BinaryOpType_Div,
 };
 
 class MATHSEXPR_API ASTNodeBinaryOp : public ASTNode
 {
-    ASTNode* _left;
-    ASTNode* _right;
+    std::shared_ptr<ASTNode> _left;
+    std::shared_ptr<ASTNode> _right;
 
     uint32_t _op;
 
 public:
-    ASTNodeBinaryOp(ASTNode* left, ASTNode* right, uint32_t op) : _left(left), _right(right), _op(op) {} 
+    ASTNodeBinaryOp(std::shared_ptr<ASTNode> left, 
+                    std::shared_ptr<ASTNode> right, 
+                    uint32_t op) : _left(std::move(left)), _right(std::move(right)), _op(op) {} 
 
     virtual ~ASTNodeBinaryOp() override {}
 
@@ -143,9 +170,24 @@ public:
 
     virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept override 
     {
-        return std::vector<ASTNode*>({ this->_left, this->_right }); 
+        return std::vector<ASTNode*>({ this->_left.get(), this->_right.get() }); 
     }
+
+    static constexpr int static_type_id() { return 5; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
 };
+
+template<typename T>
+const T* node_cast(const ASTNode* node) noexcept
+{
+    if(node != nullptr && node->type_id() == T::static_type_id())
+    {
+        return static_cast<const T*>(node);
+    }
+
+    return nullptr;
+}
 
 class MATHSEXPR_API AST
 {
@@ -153,7 +195,7 @@ public:
     static constexpr size_t PRINT_INDENT_SIZE = 4;
 
 private:
-    std::unique_ptr<ASTNode> _root;
+    std::shared_ptr<ASTNode> _root;
 
 public:
     AST() {}
@@ -170,14 +212,14 @@ public:
     {
         if(this->_root)
         {
-            this->_root.release();
+            this->_root.reset();
         }
     }
 
     template<typename N, typename... Args>
-    std::unique_ptr<N> new_node(Args&&... args) const noexcept
+    std::shared_ptr<N> new_node(Args&&... args) const noexcept
     {
-        return std::make_unique<N>(std::forward<Args>(args)...);
+        return std::make_shared<N>(std::forward<Args>(args)...);
     }
 };
 

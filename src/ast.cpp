@@ -32,7 +32,7 @@ void ASTNodeFunctionCall::print(std::ostream_iterator<char>& out, size_t indent)
                    this->_name,
                    this->_arguments.size());
 
-    for(const auto argument : this->_arguments)
+    for(const auto& argument : this->_arguments)
     {
         argument->print(out, indent + 1);
     }
@@ -42,11 +42,21 @@ const char* ast_unary_op_type_to_string(const uint32_t type) noexcept
 {
     switch(type)
     {
-        case Neg:
+        case UnaryOpType_Neg:
             return "-";
         default:
             return "?";
     }
+}
+
+uint32_t ast_unary_op_string_to_type(const std::string_view& data) noexcept
+{
+    if(data == "-")
+    {
+        return UnaryOpType_Neg;
+    }
+
+    return UnaryOpType_Unknown;
 }
 
 void ASTNodeUnaryOp::print(std::ostream_iterator<char>& out, size_t indent) const noexcept
@@ -63,21 +73,42 @@ const char* ast_binary_op_type_to_string(const uint32_t type) noexcept
 {
     switch(type)
     {
-        case Add: 
+        case BinaryOpType_Add: 
             return "+";
-        case Sub: 
+        case BinaryOpType_Sub: 
             return "-";
-        case Mul: 
+        case BinaryOpType_Mul: 
             return "*";
-        case Div: 
+        case BinaryOpType_Div: 
             return "/";
-        case Mod: 
-            return "%";
-        case Pow: 
-            return "^";
         default:
             return "?";
     }
+}
+
+uint32_t ast_binary_op_string_to_type(const std::string_view& data) noexcept
+{
+    if(data == "+") 
+    {
+        return BinaryOpType_Add;
+    }
+            
+    if(data == "-") 
+    {
+        return BinaryOpType_Sub;
+    }
+            
+    if(data == "*") 
+    {
+        return BinaryOpType_Mul;
+    }
+            
+    if(data == "/") 
+    {
+        return BinaryOpType_Div;
+    }
+
+    return static_cast<uint32_t>(BinaryOpType_Unknown);
 }
 
 void ASTNodeBinaryOp::print(std::ostream_iterator<char>& out, size_t indent) const noexcept
@@ -103,6 +134,12 @@ void AST::print() const noexcept
 
 /* Parsing */
 
+/*
+    expression = term { ("+" | "-" , term };
+    term = factor { ("*" | "/" | "%" , factor };
+    factor = literal | symbol | function "(" expression ")" | "(" expression ")" | "-" factor;
+*/
+
 class Parser
 {
     const LexerTokens& _tokens;
@@ -116,82 +153,153 @@ public:
 
     MATHSEXPR_FORCE_INLINE void advance() noexcept { this->_index++; }
 
-    MATHSEXPR_FORCE_INLINE bool is_at_end() const noexcept { this->_index >= this->_tokens.size(); }
+    MATHSEXPR_FORCE_INLINE bool is_at_end() const noexcept { return this->_index >= this->_tokens.size(); }
 
-    MATHSEXPR_FORCE_INLINE std::optional<const LexerToken&> current() const noexcept
+    MATHSEXPR_FORCE_INLINE const LexerToken& current() const noexcept
     {
         if(this->is_at_end())
         {
-            return std::nullopt;
+            return EMPTY_TOKEN;
         }
 
         return this->_tokens[this->_index];
     }
 
-    MATHSEXPR_FORCE_INLINE std::optional<const LexerToken&> peek() const noexcept
+    MATHSEXPR_FORCE_INLINE const LexerToken& peek() const noexcept
     {
         if(this->_index >= (this->_tokens.size() - 2))
         {
-            return std::nullopt;
+            return EMPTY_TOKEN;
         }
 
         return this->_tokens[this->_index + 1];
     }
 
-    std::unique_ptr<ASTNode> parse_expression() noexcept
+    std::shared_ptr<ASTNode> parse_factor() noexcept
     {
-        std::unique_ptr<ASTNode> left;
-
-        if(this->current().has_value() && this->current().value().second == LexerTokenType::Symbol)
+        switch(this->current().type)
         {
-            if(this->peek().has_value() && this->peek().value().second == LexerTokenType::LParen)
+            case LexerTokenType::Literal:
             {
-                left = this->parse_function_call();
-            }
-            else
-            {
-                left = std::make_unique<ASTNodeVariable>(this->current().value().first);
-            }
-        }
-        else if(this->current().has_value() && this->current().value().second == LexerTokenType::Literal)
-        {
-            const std::string_view& lit = this->current().value().first;
-            double result;
+                const std::string_view& lit = this->current().data;
+                double result;
 
-            auto [ptr, ec] = std::from_chars(lit.data(), lit.data() + lit.size(), result);
+                auto [ptr, ec] = std::from_chars(lit.data(), lit.data() + lit.size(), result);
 
-            if(ec != std::errc())
+                if(ec != std::errc())
+                {
+                    std::format_to(std::back_inserter(this->_error), "Unknown error caught while parsing a literal");
+                    return nullptr;
+                }
+
+                this->advance();
+
+                return std::make_shared<ASTNodeLiteral>(result, lit);
+            }
+            case LexerTokenType::Symbol:
             {
-                std::format_to(std::back_inserter(this->_error), "Unknown error caught while parsing a literal");
+                const std::string_view name = this->current().data;
+
+                if(this->peek().type == LexerTokenType::LParen)
+                {
+                    this->advance();
+
+                    std::vector<std::shared_ptr<ASTNode>> arguments;
+
+                    if(this->current().type != LexerTokenType::RParen)
+                    {
+                        arguments.push_back(std::move(this->parse_expression()));
+
+                        while(this->current().type == LexerTokenType::Comma)
+                        {
+                            this->advance();
+                            arguments.emplace_back(std::move(this->parse_expression()));
+                        }
+                    }
+
+                    this->advance();
+
+                    return std::make_shared<ASTNodeFunctionCall>(name, std::move(arguments));
+                }
+                else
+                {
+                    return std::make_shared<ASTNodeVariable>(name);
+                }
+            }
+            case LexerTokenType::LParen:
+            {
+                this->advance();
+
+                std::shared_ptr<ASTNode> expr = this->parse_expression();
+                
+                this->advance();
+
+                return expr;
+            }
+            case LexerTokenType::Operator:
+            {
+                if(this->current().data != "-")
+                {
+                    std::format_to(std::back_inserter(this->_error),
+                                   "Unexpected operator \"{}\" found when parsing unary op",
+                                   this->current().data);
+
+                    return nullptr;
+                }
+
+                return std::make_shared<ASTNodeUnaryOp>(this->parse_factor(), ast_unary_op_string_to_type(this->current().data));
+            }
+            default:
+                std::format_to(std::back_inserter(this->_error),
+                               "Unexpected token \"{}\" found when parsing factor",
+                               lexer_token_type_to_string(this->current().type));
+
                 return nullptr;
-            }
-
-            left = std::make_unique<ASTNodeLiteral>(result, lit);
         }
     }
 
-    std::unique_ptr<ASTNode> parse_function_call() noexcept
+    std::shared_ptr<ASTNode> parse_term() noexcept
     {
-        if(this->current().has_value() && this->current().value().second != LexerTokenType::Symbol)
+        std::shared_ptr<ASTNode> left = this->parse_factor();
+
+        while(this->current().type == LexerTokenType::Operator)
         {
-            return nullptr;
-        }
+            const uint32_t op = ast_binary_op_string_to_type(this->current().data);
 
-        std::string_view name = this->current().value().first;
-
-        std::vector<ASTNode*> arguments;
-
-        this->advance();
-
-        while(!this->is_at_end() && this->current().value().second != LexerTokenType::RParen)
-        {
-            std::unique_ptr<ASTNode> expr = this->parse_expression();
-
-            if(expr == nullptr)
+            if(op != BinaryOpType_Mul && 
+               op != BinaryOpType_Div)
             {
-                return nullptr;
+                break;
             }
+
+            std::shared_ptr<ASTNode> right = this->parse_factor();
+
+            left = std::make_shared<ASTNodeBinaryOp>(std::move(left), std::move(right), op);
         }
+
+        return left;
+    }
+
+    std::shared_ptr<ASTNode> parse_expression() noexcept
+    {
+        std::shared_ptr<ASTNode> left = this->parse_term();
+
+        while(this->current().type == LexerTokenType::Operator)
+        {
+            const uint32_t op = ast_binary_op_string_to_type(this->current().data);
+
+            if(op != BinaryOpType_Add && 
+               op != BinaryOpType_Sub)
+            {
+                break;
+            }
+
+            std::shared_ptr<ASTNode> right = this->parse_term();
+            
+            left = std::make_shared<ASTNodeBinaryOp>(std::move(left), std::move(right), op);
+        }
+
+        return left;
     }
 };
 
@@ -202,6 +310,11 @@ bool AST::build_from_tokens(const LexerTokens& tokens) noexcept
     Parser parser(tokens);
 
     this->_root = parser.parse_expression();
+
+    if(this->_root == nullptr)
+    {
+        return false;
+    }
 
     return true;
 }

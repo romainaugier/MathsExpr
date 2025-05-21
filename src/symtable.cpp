@@ -61,18 +61,18 @@ void SymbolTable::collect(const AST& ast) noexcept
                          children.value().begin());
         }
 
-        if(const ASTNodeVariable* current_variable = dynamic_cast<const ASTNodeVariable*>(current))
+        if(auto current_variable = node_cast<ASTNodeVariable>(current))
         {
             this->_variables[current_variable->get_name()] = SymbolVariable(current_variable->get_name(),
                                                                             this->_variables.size());
         }
-        else if(const ASTNodeLiteral* current_literal = dynamic_cast<const ASTNodeLiteral*>(current))
+        else if(auto current_literal = node_cast<ASTNodeLiteral>(current))
         {
             this->_literals[current_literal->get_name()] = SymbolLiteral(current_literal->get_value(),
                                                                          current_literal->get_name(),
                                                                          this->_literals.size());
         }
-        else if(const ASTNodeFunctionCall* current_function_call = dynamic_cast<const ASTNodeFunctionCall*>(current))
+        else if(auto current_function_call = node_cast<ASTNodeFunctionCall>(current))
         {
             this->_functions[current_function_call->get_function_name()].push_back(current_function_call);
         }
