@@ -3,7 +3,8 @@
 // All rights reserved.
 
 #include "mathsexpr/expr.h"
-#include "mathsexpr/ast.h"
+#include "mathsexpr/symtable.h"
+#include "mathsexpr/ssa.h"
 #include "mathsexpr/log.h"
 
 MATHSEXPR_NAMESPACE_BEGIN
@@ -13,7 +14,7 @@ std::tuple<bool, double> Expr::_evaluate_internal(const double* values) const no
     MATHSEXPR_NOT_IMPLEMENTED;
 }
 
-bool Expr::compile() noexcept
+bool Expr::compile(uint64_t debug_flags) noexcept
 {
     this->_byte_code.clear();
     this->_variables.clear();
@@ -38,7 +39,33 @@ bool Expr::compile() noexcept
         return false;
     }
 
-    ast.print();
+    if(debug_flags & ExprDebugFlags_PrintAST)
+    {
+        ast.print();
+    }
+
+    SymbolTable symtable;
+
+    symtable.collect(ast);
+
+    if(debug_flags & ExprDebugFlags_PrintSymTable)
+    {
+        symtable.print();
+    }
+
+    SSA ssa;
+
+    if(!ssa.build_from_ast(ast))
+    {
+        log_error("Error while building SSA for expression: {}", this->_expr);
+        log_error("Check the log for more information");
+        return false;
+    }
+
+    if(debug_flags & ExprDebugFlags_PrintSSA)
+    {
+        ssa.print();
+    }
 
     return true;
 }

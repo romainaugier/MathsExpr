@@ -36,6 +36,16 @@ struct string_hash
 
 MATHSEXPR_NAMESPACE_BEGIN
 
+enum ExprDebugFlags : uint64_t
+{
+    ExprDebugFlags_PrintAST = 0x1,
+    ExprDebugFlags_PrintSymTable = 0x2,
+    ExprDebugFlags_PrintSSA = 0x4,
+    ExprDebugFlags_PrintSSAOptimized = 0x8,
+    ExprDebugFlags_PrintSSAOptimizationSteps = 0x10,
+    ExprDebugFlags_PrintAll = std::numeric_limits<uint64_t>::max(),
+};
+
 using Variables = std::unordered_map<std::string, double, string_hash, std::equal_to<>>;
 
 class MATHSEXPR_API Expr
@@ -52,7 +62,7 @@ class MATHSEXPR_API Expr
 public:
     Expr(std::string expr) : _expr(std::move(expr)) {}
 
-    bool compile() noexcept;
+    bool compile(uint64_t debug_flags = 0) noexcept;
 
     template<typename... Args>
         requires (std::same_as<std::remove_cvref_t<Args>, double> && ...)

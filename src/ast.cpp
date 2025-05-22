@@ -4,6 +4,7 @@
 
 #include "mathsexpr/ast.h"
 #include "mathsexpr/log.h"
+#include "mathsexpr/op.h"
 
 #include <format>
 
@@ -39,77 +40,14 @@ void ASTNodeFunctionCall::print(std::ostream_iterator<char>& out, size_t indent)
     }
 }
 
-const char* ast_unary_op_type_to_string(const uint32_t type) noexcept
-{
-    switch(type)
-    {
-        case UnaryOpType_Neg:
-            return "-";
-        default:
-            return "?";
-    }
-}
-
-uint32_t ast_unary_op_string_to_type(const std::string_view& data) noexcept
-{
-    if(data == "-")
-    {
-        return UnaryOpType_Neg;
-    }
-
-    return UnaryOpType_Unknown;
-}
-
 void ASTNodeUnaryOp::print(std::ostream_iterator<char>& out, size_t indent) const noexcept
 {
     std::format_to(out,
                    "{}UNARY OP: {}\n",
                    std::string(AST::PRINT_INDENT_SIZE * indent, ' '),
-                   ast_unary_op_type_to_string(this->_op));
+                   op_unary_to_string(this->_op));
 
     this->_operand->print(out, indent + 1);
-}
-
-const char* ast_binary_op_type_to_string(const uint32_t type) noexcept
-{
-    switch(type)
-    {
-        case BinaryOpType_Add: 
-            return "+";
-        case BinaryOpType_Sub: 
-            return "-";
-        case BinaryOpType_Mul: 
-            return "*";
-        case BinaryOpType_Div: 
-            return "/";
-        default:
-            return "?";
-    }
-}
-
-uint32_t ast_binary_op_string_to_type(const std::string_view& data) noexcept
-{
-    if(data == "+") 
-    {
-        return BinaryOpType_Add;
-    }
-            
-    if(data == "-") 
-    {
-        return BinaryOpType_Sub;
-    }
-            
-    if(data == "*") 
-    {
-        return BinaryOpType_Mul;
-    }
-            
-    if(data == "/") 
-    {
-        return BinaryOpType_Div;
-    }
-
-    return static_cast<uint32_t>(BinaryOpType_Unknown);
 }
 
 void ASTNodeBinaryOp::print(std::ostream_iterator<char>& out, size_t indent) const noexcept
@@ -117,7 +55,7 @@ void ASTNodeBinaryOp::print(std::ostream_iterator<char>& out, size_t indent) con
     std::format_to(out,
                    "{}BINARY OP: {}\n",
                    std::string(AST::PRINT_INDENT_SIZE * indent, ' '),
-                   ast_binary_op_type_to_string(this->_op));
+                   op_binary_to_string(this->_op));
 
     this->_left->print(out, indent + 1);
     this->_right->print(out, indent + 1);
@@ -129,6 +67,7 @@ void AST::print() const noexcept
 
     if(this->_root)
     {
+        std::format_to(out, "AST\n");
         this->_root->print(out, 0);
     }
 }
@@ -275,7 +214,7 @@ public:
                     return nullptr;
                 }
 
-                return std::make_shared<ASTNodeUnaryOp>(factor, ast_unary_op_string_to_type(this->current().data));
+                return std::make_shared<ASTNodeUnaryOp>(factor, op_unary_from_string(this->current().data));
             }
             default:
             {
@@ -294,7 +233,7 @@ public:
 
         while(this->current().type == LexerTokenType::Operator)
         {
-            const uint32_t op = ast_binary_op_string_to_type(this->current().data);
+            const uint32_t op = op_binary_from_string(this->current().data);
 
             if(op != BinaryOpType_Mul && 
                op != BinaryOpType_Div)
@@ -323,7 +262,7 @@ public:
 
         while(this->current().type == LexerTokenType::Operator)
         {
-            const uint32_t op = ast_binary_op_string_to_type(this->current().data);
+            const uint32_t op = op_binary_from_string(this->current().data);
 
             if(op != BinaryOpType_Add && 
                op != BinaryOpType_Sub)

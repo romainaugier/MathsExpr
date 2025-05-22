@@ -52,13 +52,18 @@ void SymbolTable::collect(const AST& ast) noexcept
         const ASTNode* current = nodes.front();
         nodes.pop_front();
 
+        if(current == nullptr)
+        {
+            continue;
+        }
+
         auto children = current->get_children();
 
         if(children.has_value())
         {
             nodes.insert(nodes.end(), 
                          children.value().begin(),
-                         children.value().begin());
+                         children.value().end());
         }
 
         if(auto current_variable = node_cast<ASTNodeVariable>(current))
