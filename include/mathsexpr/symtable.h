@@ -17,6 +17,10 @@ MATHSEXPR_NAMESPACE_BEGIN
 
 static constexpr size_t INVALID_SYMBOL_ID = std::numeric_limits<size_t>::max();
 
+static constexpr size_t VALUE_OFFSET = sizeof(double);
+
+static constexpr size_t INVALID_OFFSET = std::numeric_limits<size_t>::max();
+
 class MATHSEXPR_API Symbol 
 {
     std::string_view _name;
@@ -30,6 +34,16 @@ public:
     std::string_view get_name() const noexcept { return this->_name; }
 
     size_t get_id() const noexcept { return this->_id; }
+
+    size_t get_offset() const noexcept 
+    { 
+        if(!this->valid())
+        {
+            return INVALID_OFFSET;
+        }
+
+        return this->_id * VALUE_OFFSET;
+    }
 
     bool valid() const noexcept { return this->_id != INVALID_SYMBOL_ID; }
 };
@@ -60,7 +74,7 @@ class MATHSEXPR_API SymbolTable
 
     std::unordered_map<std::string_view, SymbolLiteral> _literals;
 
-    std::unordered_map<std::string_view, std::vector<const ASTNodeFunctionCall*>> _functions;
+    std::unordered_map<std::string_view, std::vector<const ASTNodeFunctionOp*>> _functions;
 
 public:
     SymbolTable() {}
@@ -72,6 +86,10 @@ public:
     void clear() noexcept;
 
     void collect(const AST& ast) noexcept;
+
+    size_t get_variable_offset(std::string_view variable_name) const noexcept;
+
+    size_t get_literal_offset(std::string_view literal_name) const noexcept;
 };
 
 MATHSEXPR_NAMESPACE_END

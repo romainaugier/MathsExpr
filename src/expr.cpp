@@ -3,9 +3,8 @@
 // All rights reserved.
 
 #include "mathsexpr/expr.h"
-#include "mathsexpr/symtable.h"
-#include "mathsexpr/ssa.h"
 #include "mathsexpr/log.h"
+#include "mathsexpr/codegen.h"
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -39,7 +38,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         return false;
     }
 
-    if(debug_flags & ExprDebugFlags_PrintAST)
+    if(debug_flags & ExprPrintFlags_PrintAST)
     {
         ast.print();
     }
@@ -48,7 +47,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
 
     symtable.collect(ast);
 
-    if(debug_flags & ExprDebugFlags_PrintSymTable)
+    if(debug_flags & ExprPrintFlags_PrintSymTable)
     {
         symtable.print();
     }
@@ -62,9 +61,23 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         return false;
     }
 
-    if(debug_flags & ExprDebugFlags_PrintSSA)
+    if(debug_flags & ExprPrintFlags_PrintSSA)
     {
         ssa.print();
+    }
+
+    CodeGenerator generator;
+
+    if(!generator.build(ssa, symtable))
+    {
+        log_error("Error while building CodeGenerator for expression: {}", this->_expr);
+        log_error("Check the log for more information");
+        return false;
+    }
+
+    if(debug_flags & ExprPrintFlags_PrintCodeGeneratorAsString)
+    {
+        generator.print(CodeGenISA_x86_64, CodeGenPlatform_Linux);
     }
 
     return true;

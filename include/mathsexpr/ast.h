@@ -22,7 +22,7 @@ enum ASTNodeTypeId : int
     ASTNodeTypeId_Literal = 2,
     ASTNodeTypeId_UnOp = 3,
     ASTNodeTypeId_BinOp = 4,
-    ASTNodeTypeId_FunctionCall = 5,
+    ASTNodeTypeId_FuncOp = 5,
 };
 
 class MATHSEXPR_API ASTNode
@@ -146,18 +146,18 @@ public:
     uint32_t get_op() const noexcept { return this->_op; }
 };
 
-class MATHSEXPR_API ASTNodeFunctionCall : public ASTNode
+class MATHSEXPR_API ASTNodeFunctionOp : public ASTNode
 {
     std::vector<std::shared_ptr<ASTNode>> _arguments;
 
     std::string_view _name;
 
 public:
-    ASTNodeFunctionCall(std::string_view name, 
+    ASTNodeFunctionOp(std::string_view name, 
                         std::vector<std::shared_ptr<ASTNode>> arguments) : _arguments(std::move(arguments)), 
                                                                            _name(name) {}
 
-    virtual ~ASTNodeFunctionCall() override {}
+    virtual ~ASTNodeFunctionOp() override {}
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept override;
 
@@ -173,7 +173,7 @@ public:
         return children;
     }
 
-    static constexpr int static_type_id() { return ASTNodeTypeId_FunctionCall; }
+    static constexpr int static_type_id() { return ASTNodeTypeId_FuncOp; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 

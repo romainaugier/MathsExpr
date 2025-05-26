@@ -26,10 +26,10 @@ void ASTNodeLiteral::print(std::ostream_iterator<char>& out, size_t indent) cons
                    this->_value);
 }
 
-void ASTNodeFunctionCall::print(std::ostream_iterator<char>& out, size_t indent) const noexcept
+void ASTNodeFunctionOp::print(std::ostream_iterator<char>& out, size_t indent) const noexcept
 {
     std::format_to(out, 
-                   "{}FUNCTION CALL: {}({} arguments)\n", 
+                   "{}FUNCTION OP: {}({} arguments)\n", 
                    std::string(AST::PRINT_INDENT_SIZE * indent, ' '),
                    this->_name,
                    this->_arguments.size());
@@ -175,7 +175,7 @@ public:
 
                     this->advance();
 
-                    return std::make_shared<ASTNodeFunctionCall>(name, std::move(arguments));
+                    return std::make_shared<ASTNodeFunctionOp>(name, std::move(arguments));
                 }
                 else
                 {

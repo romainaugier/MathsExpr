@@ -17,9 +17,8 @@ enum SSAStmtTypeId : int
     SSAStmtTypeId_Literal = 2,
     SSAStmtTypeId_UnOp = 3,
     SSAStmtTypeId_BinOp = 4,
-    SSAStmtTypeId_FunctionCall = 5,
+    SSAStmtTypeId_FuncOp = 5,
 };
-
 
 static constexpr char VERSION_CHAR = 't';
 
@@ -63,6 +62,8 @@ public:
     static constexpr int static_type_id() { return 1; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
+
+    std::string_view get_name() const noexcept { return this->_name; }
 };
 
 class MATHSEXPR_API SSAStmtLiteral : public SSAStmt
@@ -83,6 +84,8 @@ public:
     static constexpr int static_type_id() { return 2; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
+
+    std::string_view get_name() const noexcept { return this->_name; }
 };
 
 class MATHSEXPR_API SSAStmtUnOp : public SSAStmt
@@ -136,20 +139,20 @@ public:
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 };
 
-class MATHSEXPR_API SSAStmtFunctionCall : public SSAStmt
+class MATHSEXPR_API SSAStmtFunctionOp : public SSAStmt
 {
     std::vector<SSAStmtPtr> _arguments;
 
     std::string_view _name;
 
 public:
-    SSAStmtFunctionCall(std::string_view name,
+    SSAStmtFunctionOp(std::string_view name,
                         std::vector<SSAStmtPtr> arguments,
                         uint64_t version = INVALID_VERSION) : SSAStmt(version),
                                                               _name(name),
                                                               _arguments(std::move(arguments)) {}
 
-    virtual ~SSAStmtFunctionCall() override {}
+    virtual ~SSAStmtFunctionOp() override {}
 
     virtual void print(std::ostream_iterator<char>& out) const noexcept override;
 
@@ -183,6 +186,8 @@ public:
     void print() const noexcept;
 
     bool build_from_ast(const AST& ast) noexcept;
+
+    const std::vector<SSAStmtPtr>& get_statements() const noexcept { return this->_statements; }
 };
 
 MATHSEXPR_NAMESPACE_END

@@ -44,7 +44,7 @@ void SSAStmtBinOp::print(std::ostream_iterator<char>& out) const noexcept
                    this->_right->get_version());
 }
 
-void SSAStmtFunctionCall::print(std::ostream_iterator<char>& out) const noexcept
+void SSAStmtFunctionOp::print(std::ostream_iterator<char>& out) const noexcept
 {
     std::string arguments;
 
@@ -92,7 +92,7 @@ uint64_t SSAStmtBinOp::canonicalize() const noexcept
     return 0;
 }
 
-uint64_t SSAStmtFunctionCall::canonicalize() const noexcept
+uint64_t SSAStmtFunctionOp::canonicalize() const noexcept
 {
     return 0;
 }
@@ -185,9 +185,9 @@ bool SSA::build_from_ast(const AST& ast) noexcept
 
                 break;
             }
-            case ASTNodeTypeId_FunctionCall:
+            case ASTNodeTypeId_FuncOp:
             {
-                const ASTNodeFunctionCall* funccall_node = node_cast<ASTNodeFunctionCall>(node);
+                const ASTNodeFunctionOp* funccall_node = node_cast<ASTNodeFunctionOp>(node);
 
                 for(const auto& argument : funccall_node->get_arguments())
                 {
@@ -207,7 +207,7 @@ bool SSA::build_from_ast(const AST& ast) noexcept
                     arguments.push_back(mapping[argument.get()]);
                 }
 
-                SSAStmtPtr funccall = std::make_shared<SSAStmtFunctionCall>(funccall_node->get_function_name(),
+                SSAStmtPtr funccall = std::make_shared<SSAStmtFunctionOp>(funccall_node->get_function_name(),
                                                                             std::move(arguments),
                                                                             version++);
 
