@@ -4,6 +4,11 @@
 
 #include "mathsexpr/codegen.h"
 
+/*
+    https://www.thejat.in/learn/system-v-amd64-calling-convention
+    https://learn.microsoft.com/en-us/cpp/build/x64-software-conventions?view=msvc-170#x64-register-usage
+*/
+
 MATHSEXPR_NAMESPACE_BEGIN
 
 static constexpr uint32_t VARIABLES_MEM_ID = 0;
