@@ -24,12 +24,24 @@ static constexpr char VERSION_CHAR = 't';
 
 static constexpr uint64_t INVALID_VERSION = std::numeric_limits<uint64_t>::max();
 
+struct LiveRange {
+    uint64_t start;
+    uint64_t end;
+
+    LiveRange(uint64_t start, uint64_t end) : start(start), end(end) {}
+};
+
 class MATHSEXPR_API SSAStmt
 {
+
     uint64_t _version;
 
+    LiveRange _range;
+
 public:
-    SSAStmt(uint64_t version = INVALID_VERSION) : _version(version) {}
+    SSAStmt(uint64_t version = INVALID_VERSION, uint64_t live_range_start = 0) : _version(version), 
+                                                                                 _range(live_range_start, 
+                                                                                        live_range_start) {}
 
     virtual ~SSAStmt() = default;
 
@@ -40,6 +52,10 @@ public:
     virtual int type_id() const noexcept = 0;
 
     uint64_t get_version() const noexcept { return this->_version; }
+
+    LiveRange& get_live_range() noexcept { return this->_range; }
+
+    const LiveRange& get_live_range() const noexcept { return this->_range; }
 };
 
 using SSAStmtPtr = std::shared_ptr<SSAStmt>;
@@ -50,8 +66,9 @@ class MATHSEXPR_API SSAStmtVariable : public SSAStmt
 
 public:
     SSAStmtVariable(std::string_view name, 
-                    uint64_t version = INVALID_VERSION) : SSAStmt(version), 
-                                                          _name(name) {}
+                    uint64_t version = INVALID_VERSION,
+                    uint64_t live_range_start = 0) : SSAStmt(version, live_range_start), 
+                                                     _name(name) {}
 
     virtual ~SSAStmtVariable() override {}
 
@@ -72,8 +89,9 @@ class MATHSEXPR_API SSAStmtLiteral : public SSAStmt
 
 public:
     SSAStmtLiteral(std::string_view name,
-                   uint64_t version = INVALID_VERSION) : SSAStmt(version), 
-                                                         _name(name) {}
+                   uint64_t version = INVALID_VERSION,
+                   uint64_t live_range_start = 0) : SSAStmt(version, live_range_start), 
+                                                    _name(name) {}
 
     virtual ~SSAStmtLiteral() override {}
 
@@ -97,9 +115,10 @@ class MATHSEXPR_API SSAStmtUnOp : public SSAStmt
 public:
     SSAStmtUnOp(SSAStmtPtr operand,
                 uint32_t op,
-                uint64_t version = INVALID_VERSION) : SSAStmt(version), 
-                                                      _operand(operand),
-                                                      _op(op) {}
+                uint64_t version = INVALID_VERSION,
+                uint64_t live_range_start = 0) : SSAStmt(version, live_range_start), 
+                                                 _operand(operand),
+                                                 _op(op) {}
 
     virtual ~SSAStmtUnOp() override {}
 
@@ -123,10 +142,11 @@ public:
     SSAStmtBinOp(SSAStmtPtr left,
                  SSAStmtPtr right,
                  uint32_t op,
-                 uint64_t version = INVALID_VERSION) : SSAStmt(version),
-                                                       _left(left),
-                                                       _right(right),
-                                                       _op(op) {}
+                 uint64_t version = INVALID_VERSION,
+                 uint64_t live_range_start = 0) : SSAStmt(version, live_range_start),
+                                                  _left(left),
+                                                  _right(right),
+                                                  _op(op) {}
 
     virtual ~SSAStmtBinOp() override {}
 
@@ -147,10 +167,11 @@ class MATHSEXPR_API SSAStmtFunctionOp : public SSAStmt
 
 public:
     SSAStmtFunctionOp(std::string_view name,
-                        std::vector<SSAStmtPtr> arguments,
-                        uint64_t version = INVALID_VERSION) : SSAStmt(version),
-                                                              _name(name),
-                                                              _arguments(std::move(arguments)) {}
+                      std::vector<SSAStmtPtr> arguments,
+                      uint64_t version = INVALID_VERSION,
+                      uint64_t live_range_start = 0) : SSAStmt(version, live_range_start),
+                                                       _name(name),
+                                                       _arguments(std::move(arguments)) {}
 
     virtual ~SSAStmtFunctionOp() override {}
 
@@ -163,6 +184,71 @@ public:
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
     std::string_view get_name() const noexcept { return this->_name; }
+};
+
+class MATHSEXPR_API SSAStmtAllocateStackOp : public SSAStmt
+{
+    uint64_t _size;
+
+public:
+    SSAStmtAllocateStackOp(uint64_t stack_size,
+                           uint64_t version = INVALID_VERSION,
+                           uint64_t live_range_start = 0) : SSAStmt(version),
+                                                            _size(stack_size) {}
+
+    virtual ~SSAStmtAllocateStackOp() override {}
+
+    virtual void print(std::ostream_iterator<char>& out) const noexcept override;
+
+    virtual uint64_t canonicalize() const noexcept override;
+
+    static constexpr int static_type_id() { return 6; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
+};
+
+class MATHSEXPR_API SSAStmtSpillOp : public SSAStmt
+{
+    uint64_t _offset;
+    uint64_t _operand;
+
+public:
+    SSAStmtSpillOp(uint64_t offset,
+                   uint64_t operand,
+                   uint64_t version = INVALID_VERSION,
+                   uint64_t live_range_start = 0) : SSAStmt(version),
+                                                    _offset(offset) {}
+
+    virtual ~SSAStmtSpillOp() override {}
+
+    virtual void print(std::ostream_iterator<char>& out) const noexcept override;
+
+    virtual uint64_t canonicalize() const noexcept override;
+
+    static constexpr int static_type_id() { return 7; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
+};
+
+class MATHSEXPR_API SSAStmtLoadOp : public SSAStmt
+{
+    uint64_t _offset;
+
+public:
+    SSAStmtLoadOp(uint64_t offset,
+                  uint64_t version = INVALID_VERSION,
+                  uint64_t live_range_start = 0) : SSAStmt(version),
+                                                   _offset(offset) {}
+
+    virtual ~SSAStmtLoadOp() override {}
+
+    virtual void print(std::ostream_iterator<char>& out) const noexcept override;
+
+    virtual uint64_t canonicalize() const noexcept override;
+
+    static constexpr int static_type_id() { return 8; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
 };
 
 template<typename T>
@@ -179,6 +265,8 @@ const T* statement_cast(const SSAStmt* stmt) noexcept
 class MATHSEXPR_API SSA
 {
     std::vector<SSAStmtPtr> _statements;
+
+    uint64_t get_statement_number() const noexcept { return this->_statements.size(); }
 
 public:
     SSA() {}

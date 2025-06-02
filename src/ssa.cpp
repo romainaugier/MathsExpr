@@ -12,36 +12,51 @@ MATHSEXPR_NAMESPACE_BEGIN
 
 void SSAStmtVariable::print(std::ostream_iterator<char>& out) const noexcept
 {
-    std::format_to(out, "{}{} = {}\n", VERSION_CHAR, this->get_version(), this->_name);
+    std::format_to(out, "{}{} = {} ({}->{})\n", 
+                   VERSION_CHAR, 
+                   this->get_version(),
+                   this->_name,
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtLiteral::print(std::ostream_iterator<char>& out) const noexcept
 {
-    std::format_to(out, "{}{} = {}\n", VERSION_CHAR, this->get_version(), this->_name);
+    std::format_to(out, 
+                   "{}{} = {} ({}->{})\n",
+                   VERSION_CHAR,
+                   this->get_version(),
+                   this->_name,
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtUnOp::print(std::ostream_iterator<char>& out) const noexcept
 {
     std::format_to(out, 
-                   "{}{} = {}{}{}\n",
+                   "{}{} = {}{}{} ({}->{})\n",
                    VERSION_CHAR,
                    this->get_version(),
                    op_unary_to_string(this->_op),
                    VERSION_CHAR,
-                   this->_operand->get_version());
+                   this->_operand->get_version(),
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtBinOp::print(std::ostream_iterator<char>& out) const noexcept
 {
     std::format_to(out, 
-                   "{}{} = {}{} {} {}{}\n",
+                   "{}{} = {}{} {} {}{} ({}->{})\n",
                    VERSION_CHAR,
                    this->get_version(),
                    VERSION_CHAR,
                    this->_left->get_version(),
                    op_binary_to_string(this->_op),
                    VERSION_CHAR,
-                   this->_right->get_version());
+                   this->_right->get_version(),
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtFunctionOp::print(std::ostream_iterator<char>& out) const noexcept
@@ -57,7 +72,29 @@ void SSAStmtFunctionOp::print(std::ostream_iterator<char>& out) const noexcept
                        arg->get_version());
     }
 
-    std::format_to(out, "{}{} = {}({})\n", VERSION_CHAR, this->get_version(), this->_name, arguments);
+    std::format_to(out,
+                   "{}{} = {}({}) ({}->{})\n", 
+                   VERSION_CHAR,
+                   this->get_version(),
+                   this->_name,
+                   arguments,
+                   this->get_live_range().start,
+                   this->get_live_range().end);
+}
+
+void SSAStmtAllocateStackOp::print(std::ostream_iterator<char>& out) const noexcept
+{
+    std::format_to(out, "stackalloc ({} bytes)\n", this->_size);
+}
+
+void SSAStmtSpillOp::print(std::ostream_iterator<char>& out) const noexcept
+{
+    std::format_to(out, "spill {} [sp - {}]\n", this->_operand, this->_offset);
+}
+
+void SSAStmtLoadOp::print(std::ostream_iterator<char>& out) const noexcept
+{
+    std::format_to(out, "load {} [sp - {}]\n", this->get_version(), this->_offset);
 }
 
 void SSA::print() const noexcept
@@ -102,7 +139,7 @@ uint64_t SSAStmtFunctionOp::canonicalize() const noexcept
 bool SSA::build_from_ast(const AST& ast) noexcept
 {
     this->_statements.clear();
-    uint64_t version = 1;
+    uint64_t version = 0;
     bool no_error = true;
 
     std::unordered_map<const ASTNode*, SSAStmtPtr> mapping;
@@ -120,7 +157,8 @@ bool SSA::build_from_ast(const AST& ast) noexcept
                 const ASTNodeVariable* variable_node = node_cast<ASTNodeVariable>(node);
 
                 SSAStmtPtr variable = std::make_shared<SSAStmtVariable>(variable_node->get_name(),
-                                                                        version++);
+                                                                        version++,
+                                                                        this->get_statement_number());
 
                 this->_statements.push_back(variable);
                 mapping[variable_node] = variable;
@@ -132,7 +170,8 @@ bool SSA::build_from_ast(const AST& ast) noexcept
                 const ASTNodeLiteral* literal_node = node_cast<ASTNodeLiteral>(node);
 
                 SSAStmtPtr literal = std::make_shared<SSAStmtLiteral>(literal_node->get_name(),
-                                                                      version++);
+                                                                      version++,
+                                                                      this->get_statement_number());
 
                 this->_statements.push_back(literal);
                 mapping[literal_node] = literal;
@@ -152,9 +191,12 @@ bool SSA::build_from_ast(const AST& ast) noexcept
                     return;
                 }
 
+                mapping[unop_node->get_operand()]->get_live_range().end = this->get_statement_number();
+
                 SSAStmtPtr unop = std::make_shared<SSAStmtUnOp>(mapping[unop_node->get_operand()],
                                                                 unop_node->get_op(),
-                                                                version++);
+                                                                version++,
+                                                                this->get_statement_number());
 
                 this->_statements.push_back(unop);
                 mapping[unop_node] = unop;
@@ -166,7 +208,6 @@ bool SSA::build_from_ast(const AST& ast) noexcept
                 const ASTNodeBinaryOp* binop_node = node_cast<ASTNodeBinaryOp>(node);
 
                 self(self, binop_node->get_left());
-
                 self(self, binop_node->get_right());
 
                 if(!mapping.contains(binop_node->get_left()) && !mapping.contains(binop_node->get_right()))
@@ -175,10 +216,14 @@ bool SSA::build_from_ast(const AST& ast) noexcept
                     return;
                 }
 
+                mapping[binop_node->get_left()]->get_live_range().end = this->get_statement_number();
+                mapping[binop_node->get_right()]->get_live_range().end = this->get_statement_number();
+
                 SSAStmtPtr binop = std::make_shared<SSAStmtBinOp>(mapping[binop_node->get_left()],
                                                                   mapping[binop_node->get_right()],
                                                                   binop_node->get_op(),
-                                                                  version++);
+                                                                  version++,
+                                                                  this->get_statement_number());
 
                 this->_statements.push_back(binop);
                 mapping[binop_node] = binop;
@@ -207,9 +252,15 @@ bool SSA::build_from_ast(const AST& ast) noexcept
                     arguments.push_back(mapping[argument.get()]);
                 }
 
+                for(auto& argument : arguments)
+                {
+                    argument->get_live_range().end = this->get_statement_number();
+                }
+
                 SSAStmtPtr funccall = std::make_shared<SSAStmtFunctionOp>(funccall_node->get_function_name(),
-                                                                            std::move(arguments),
-                                                                            version++);
+                                                                          std::move(arguments),
+                                                                          version++,
+                                                                          this->get_statement_number());
 
                 this->_statements.push_back(funccall);
                 mapping[funccall_node] = funccall;
