@@ -8,6 +8,7 @@
 #define __MATHSEXPR_SSA
 
 #include "mathsexpr/ast.h"
+#include "mathsexpr/platform.h"
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -21,8 +22,10 @@ enum SSAStmtTypeId : int
 };
 
 static constexpr char VERSION_CHAR = 't';
+static constexpr char REGISTER_CHAR = 'R';
 
 static constexpr uint64_t INVALID_VERSION = std::numeric_limits<uint64_t>::max();
+static constexpr uint64_t INVALID_REGISTER = std::numeric_limits<uint64_t>::max();
 
 struct LiveRange {
     uint64_t start;
@@ -35,11 +38,13 @@ class MATHSEXPR_API SSAStmt
 {
 
     uint64_t _version;
+    uint64_t _register;
 
     LiveRange _range;
 
 public:
     SSAStmt(uint64_t version = INVALID_VERSION, uint64_t live_range_start = 0) : _version(version), 
+                                                                                 _register(INVALID_REGISTER),
                                                                                  _range(live_range_start, 
                                                                                         live_range_start) {}
 
@@ -52,6 +57,12 @@ public:
     virtual int type_id() const noexcept = 0;
 
     uint64_t get_version() const noexcept { return this->_version; }
+
+    void set_version(uint64_t version) noexcept { this->_version = version; }
+
+    uint64_t get_register() const noexcept { return this->_register; }
+
+    void set_register(uint64_t reg) noexcept { this->_register = reg; }
 
     LiveRange& get_live_range() noexcept { return this->_range; }
 
@@ -274,6 +285,8 @@ public:
     void print() const noexcept;
 
     bool build_from_ast(const AST& ast) noexcept;
+
+    bool allocate_registers(Platform platform, ISA isa) noexcept;
 
     const std::vector<SSAStmtPtr>& get_statements() const noexcept { return this->_statements; }
 };

@@ -43,7 +43,8 @@ enum ExprPrintFlags : uint64_t
     ExprPrintFlags_PrintSSA = 0x4,
     ExprPrintFlags_PrintSSAOptimized = 0x8,
     ExprPrintFlags_PrintSSAOptimizationSteps = 0x10,
-    ExprPrintFlags_PrintCodeGeneratorAsString = 0x20,
+    ExprPrintFlags_PrintSSARegisterAlloc = 0x20,
+    ExprPrintFlags_PrintCodeGeneratorAsString = 0x40,
     ExprPrintFlags_PrintAll = std::numeric_limits<uint64_t>::max(),
 };
 

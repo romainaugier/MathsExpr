@@ -66,6 +66,13 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         ssa.print();
     }
 
+    ssa.allocate_registers(Platform_Linux, ISA_x86_64);
+
+    if(debug_flags & ExprPrintFlags_PrintSSARegisterAlloc)
+    {
+        ssa.print();
+    }
+
     CodeGenerator generator;
 
     if(!generator.build(ssa, symtable))
