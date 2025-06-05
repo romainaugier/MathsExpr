@@ -7,7 +7,7 @@
 #if !defined(__MATHSEXPR_EXPR)
 #define __MATHSEXPR_EXPR
 
-#include "mathsexpr/mathsexpr.h"
+#include "mathsexpr/mathsexpr.hpp"
 
 #include <string>
 #include <unordered_map>

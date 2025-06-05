@@ -7,7 +7,7 @@
 #if !defined(__MATHSEXPR_AST)
 #define __MATHSEXPR_AST
 
-#include "mathsexpr/lexer.h"
+#include "mathsexpr/lexer.hpp"
 
 #include <memory>
 #include <iostream>
@@ -27,7 +27,12 @@ enum ASTNodeTypeId : int
 
 class MATHSEXPR_API ASTNode
 {
+    /* Needed for Sethi-Ullman */
+    bool _needs_reg;
+
 public:
+    ASTNode(const bool needs_reg = false) : _needs_reg(needs_reg) {}
+
     virtual ~ASTNode() = default;
 
     virtual void print(std::ostream_iterator<char>& out, size_t indent) const noexcept = 0;
@@ -35,6 +40,10 @@ public:
     virtual std::optional<std::vector<ASTNode*>> get_children() const noexcept = 0;
 
     virtual int type_id() const noexcept = 0;
+
+    bool get_needs_reg() const noexcept { return this->_needs_reg; }
+
+    void set_needs_reg(const bool needs_reg) noexcept { this->_needs_reg = needs_reg; }
 };
 
 class MATHSEXPR_API ASTNodeVariable : public ASTNode
@@ -94,7 +103,10 @@ class MATHSEXPR_API ASTNodeUnaryOp : public ASTNode
     uint32_t _op;
 
 public:
-    ASTNodeUnaryOp(std::shared_ptr<ASTNode> operand, uint32_t op) : _operand(std::move(operand)), _op(op) {}
+    ASTNodeUnaryOp(std::shared_ptr<ASTNode> operand, 
+                   uint32_t op) : ASTNode(true),
+                                  _operand(std::move(operand)),
+                                  _op(op) {}
 
     virtual ~ASTNodeUnaryOp() override {}
 
@@ -124,7 +136,10 @@ class MATHSEXPR_API ASTNodeBinaryOp : public ASTNode
 public:
     ASTNodeBinaryOp(std::shared_ptr<ASTNode> left, 
                     std::shared_ptr<ASTNode> right, 
-                    uint32_t op) : _left(std::move(left)), _right(std::move(right)), _op(op) {} 
+                    uint32_t op) : ASTNode(true),
+                                   _left(std::move(left)),
+                                   _right(std::move(right)),
+                                   _op(op) {} 
 
     virtual ~ASTNodeBinaryOp() override {}
 
@@ -154,7 +169,8 @@ class MATHSEXPR_API ASTNodeFunctionOp : public ASTNode
 
 public:
     ASTNodeFunctionOp(std::string_view name, 
-                        std::vector<std::shared_ptr<ASTNode>> arguments) : _arguments(std::move(arguments)), 
+                        std::vector<std::shared_ptr<ASTNode>> arguments) : ASTNode(true),
+                                                                           _arguments(std::move(arguments)), 
                                                                            _name(name) {}
 
     virtual ~ASTNodeFunctionOp() override {}

@@ -7,7 +7,7 @@
 #if !defined(__MATHSEXPR_OP)
 #define __MATHSEXPR_OP
 
-#include "mathsexpr/mathsexpr.h"
+#include "mathsexpr/mathsexpr.hpp"
 
 #include <string_view>
 
@@ -35,6 +35,8 @@ enum BinaryOpType : uint32_t
 MATHSEXPR_API const char* op_binary_to_string(const uint32_t type) noexcept;
 
 MATHSEXPR_API uint32_t op_binary_from_string(const std::string_view& data) noexcept;
+
+MATHSEXPR_API bool op_binary_is_commutative(const uint32_t type) noexcept;
 
 MATHSEXPR_NAMESPACE_END
 

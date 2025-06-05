@@ -2,8 +2,8 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/ssa.h"
-#include "mathsexpr/op.h"
+#include "mathsexpr/ssa.hpp"
+#include "mathsexpr/op.hpp"
 
 #include <ranges>
 #include <unordered_map>
@@ -13,157 +13,74 @@ MATHSEXPR_NAMESPACE_BEGIN
 
 void SSAStmtVariable::print(std::ostream_iterator<char>& out) const noexcept
 {
-    if(this->get_register() != INVALID_REGISTER)
-    {
-        std::format_to(out, "{}{} = load {} ({}->{})\n", 
-                       REGISTER_CHAR, 
-                       this->get_register(),
-                       this->_name,
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-
-    }
-    else
-    {
-        std::format_to(out, "{}{} = load {} ({}->{})\n", 
-                       VERSION_CHAR, 
-                       this->get_version(),
-                       this->_name,
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
+    std::format_to(out, "{}{} = load {} ({}->{})\n", 
+                   VERSION_CHAR, 
+                   this->get_version(),
+                   this->_name,
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtLiteral::print(std::ostream_iterator<char>& out) const noexcept
 {
-    if(this->get_register() != INVALID_REGISTER)
-    {
-        std::format_to(out, 
-                       "{}{} = loadi {} ({}->{})\n",
-                       REGISTER_CHAR,
-                       this->get_register(),
-                       this->_name,
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
-    else
-    {
-        std::format_to(out, 
-                       "{}{} = loadi {} ({}->{})\n",
-                       VERSION_CHAR,
-                       this->get_version(),
-                       this->_name,
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
+    std::format_to(out, 
+                   "{}{} = loadi {} ({}->{})\n",
+                   VERSION_CHAR,
+                   this->get_version(),
+                   this->_name,
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtUnOp::print(std::ostream_iterator<char>& out) const noexcept
 {
-    if(this->get_register() != INVALID_REGISTER)
-    {
-        std::format_to(out, 
-                       "{}{} = {}{}{} ({}->{})\n",
-                       REGISTER_CHAR,
-                       this->get_register(),
-                       op_unary_to_string(this->_op),
-                       REGISTER_CHAR,
-                       this->_operand->get_register(),
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
-    else
-    {
-        std::format_to(out, 
-                       "{}{} = {}{}{} ({}->{})\n",
-                       VERSION_CHAR,
-                       this->get_version(),
-                       op_unary_to_string(this->_op),
-                       VERSION_CHAR,
-                       this->_operand->get_version(),
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
+    std::format_to(out, 
+                   "{}{} = {}{}{} ({}->{})\n",
+                   VERSION_CHAR,
+                   this->get_version(),
+                   op_unary_to_string(this->_op),
+                   VERSION_CHAR,
+                   this->_operand->get_version(),
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtBinOp::print(std::ostream_iterator<char>& out) const noexcept
 {
-    if(this->get_register() != INVALID_REGISTER)
-    {
-        std::format_to(out, 
-                       "{}{} = {}{} {} {}{} ({}->{})\n",
-                       REGISTER_CHAR,
-                       this->get_register(),
-                       REGISTER_CHAR,
-                       this->_left->get_register(),
-                       op_binary_to_string(this->_op),
-                       REGISTER_CHAR,
-                       this->_right->get_register(),
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
-    else
-    {
-        std::format_to(out, 
-                       "{}{} = {}{} {} {}{} ({}->{})\n",
-                       VERSION_CHAR,
-                       this->get_version(),
-                       VERSION_CHAR,
-                       this->_left->get_version(),
-                       op_binary_to_string(this->_op),
-                       VERSION_CHAR,
-                       this->_right->get_version(),
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
+    std::format_to(out, 
+                   "{}{} = {}{} {} {}{} ({}->{})\n",
+                   VERSION_CHAR,
+                   this->get_version(),
+                   VERSION_CHAR,
+                   this->_left->get_version(),
+                   op_binary_to_string(this->_op),
+                   VERSION_CHAR,
+                   this->_right->get_version(),
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtFunctionOp::print(std::ostream_iterator<char>& out) const noexcept
 {
-    if(this->get_register() != INVALID_REGISTER)
+    std::string arguments;
+
+    for(const auto [i, arg] : std::views::enumerate(this->_arguments))
     {
-        std::string arguments;
-
-        for(const auto [i, arg] : std::views::enumerate(this->_arguments))
-        {
-            std::format_to(std::back_inserter(arguments), 
-                           "{}{}{}",
-                           i == 0 ? "" : ", ",
-                           REGISTER_CHAR,
-                           arg->get_register());
-        }
-
-        std::format_to(out,
-                       "{}{} = {}({}) ({}->{})\n", 
-                       REGISTER_CHAR,
-                       this->get_register(),
-                       this->_name,
-                       arguments,
-                       this->get_live_range().start,
-                       this->get_live_range().end);
-    }
-    else
-    {
-        std::string arguments;
-
-        for(const auto [i, arg] : std::views::enumerate(this->_arguments))
-        {
-            std::format_to(std::back_inserter(arguments), 
-                           "{}{}{}",
-                           i == 0 ? "" : ", ",
-                           VERSION_CHAR,
-                           arg->get_version());
-        }
-
-        std::format_to(out,
-                       "{}{} = {}({}) ({}->{})\n", 
+        std::format_to(std::back_inserter(arguments), 
+                       "{}{}{}",
+                       i == 0 ? "" : ", ",
                        VERSION_CHAR,
-                       this->get_version(),
-                       this->_name,
-                       arguments,
-                       this->get_live_range().start,
-                       this->get_live_range().end);
+                       arg->get_version());
     }
+
+    std::format_to(out,
+                   "{}{} = {}({}) ({}->{})\n", 
+                   VERSION_CHAR,
+                   this->get_version(),
+                   this->_name,
+                   arguments,
+                   this->get_live_range().start,
+                   this->get_live_range().end);
 }
 
 void SSAStmtAllocateStackOp::print(std::ostream_iterator<char>& out) const noexcept
@@ -173,19 +90,12 @@ void SSAStmtAllocateStackOp::print(std::ostream_iterator<char>& out) const noexc
 
 void SSAStmtSpillOp::print(std::ostream_iterator<char>& out) const noexcept
 {
-    std::format_to(out, "spill {} [sp - {}]\n", this->_operand, this->_offset);
+    std::format_to(out, "spill {}{}\n", VERSION_CHAR, this->_operand->get_version());
 }
 
 void SSAStmtLoadOp::print(std::ostream_iterator<char>& out) const noexcept
 {
-    if(this->get_register() != INVALID_REGISTER)
-    {
-        std::format_to(out, "load {}{} [sp - {}]\n", REGISTER_CHAR, this->get_register(), this->_offset);
-    }
-    else
-    {
-        std::format_to(out, "load {}{} [sp - {}]\n", VERSION_CHAR, this->get_version(), this->_offset);
-    }
+    std::format_to(out, "{}{} = load\n", VERSION_CHAR, this->get_version());
 }
 
 void SSA::print() const noexcept
@@ -380,202 +290,6 @@ bool SSA::build_from_ast(const AST& ast) noexcept
     traverse(traverse, ast.get_root());
 
     return no_error;
-}
-
-/* SSA Register allocation */
-
-/*
-    Since we don't have phi-nodes in our SSA form, register allocation is trivial and can be performed
-    with a linear scan (with constraints). Since we only support floating point operations, we only
-    allocate in fp registers (xmm[i])
-
-    For Linux x86_64, we can use xmm0-xmm7
-    For Windows x86_64, we can use xmm0-xmm5
-*/
-
-/* 
-    Simple helper structure. For now, since we won't allocate on more than 64 registers, we can
-    assume that a 64 bits integer will be sufficient. The structure can be adapted in the future 
-    to hold more registers
-*/
-
-class BitVector 
-{
-    static constexpr size_t SIZE = 1;
-    static constexpr size_t BIT_SIZE = 64;
-    static constexpr size_t BYTE_SIZE = sizeof(uint64_t);
-
-private:
-    uint64_t _data[SIZE];
-
-    std::tuple<size_t, size_t> get_index(size_t index) const noexcept
-    {
-        return std::make_tuple(index / BIT_SIZE, index % BIT_SIZE);
-    }
-
-public:
-    BitVector() 
-    {
-        this->reset();
-    }
-
-    BitVector(const BitVector& other)
-    {
-        std::memcpy(this->_data, other._data, SIZE * BYTE_SIZE);
-    }
-
-    BitVector(BitVector&& other) noexcept
-    {
-        std::memcpy(this->_data, other._data, SIZE * BYTE_SIZE);
-    }
-
-    BitVector operator=(const BitVector& other)
-    {
-        std::memcpy(this->_data, other._data, SIZE * BYTE_SIZE);
-
-        return *this;
-    }
-
-    BitVector operator=(BitVector&& other) noexcept
-    {
-        std::memcpy(this->_data, other._data, SIZE * BYTE_SIZE);
-
-        return *this;
-    }
-
-    bool get(size_t index) const noexcept
-    {
-        MATHSEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
-
-        const auto [arr_index, bit_index]= this->get_index(index);
-
-        return (_data[arr_index] >> bit_index) & 1;
-    }
-
-    void set(size_t index) 
-    {
-        MATHSEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
-
-        const auto [arr_index, bit_index]= this->get_index(index);
-
-        this->_data[arr_index] |= (uint64_t(1) << bit_index);
-    }
-
-    void clear(size_t index) noexcept
-    {
-        MATHSEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
-
-        const auto [arr_index, bit_index]= this->get_index(index);
-
-        this->_data[arr_index] &= ~(uint64_t(1) << bit_index);
-    }
-
-    size_t ffz() const noexcept
-    {
-        size_t first = 0;
-
-        while(first < (SIZE * BIT_SIZE) && this->get(first))
-        {
-            first++;
-        }
-
-        return first;
-    }
-
-
-    size_t ffs() const noexcept
-    {
-        size_t first = 0;
-
-        while(first < (SIZE * BIT_SIZE) && !this->get(first))
-        {
-            first++;
-        }
-
-        return first;
-    }
-
-    void reset() noexcept
-    {
-        std::memset(this->_data, 0, SIZE * BYTE_SIZE);
-    }
-
-    void operator&(const BitVector& other) noexcept
-    {
-        for(size_t i = 0; i < SIZE; i++)
-        {
-            this->_data[i] &= other._data[i];
-        }
-    }
-
-    void operator|(const BitVector& other) noexcept
-    {
-        for(size_t i = 0; i < SIZE; i++)
-        {
-            this->_data[i] |= other._data[i];
-        }
-    }
-
-    void operator^(const BitVector& other) noexcept
-    {
-        for(size_t i = 0; i < SIZE; i++)
-        {
-            this->_data[i] ^= other._data[i];
-        }
-    }
-
-    void print() const noexcept
-    {
-        static std::ostream_iterator<char> out(std::cout);
-
-        for(size_t i = 0; i < SIZE * BIT_SIZE; i++)
-        {
-            std::format_to(out, "{}", this->get(i) ? '1' : '0');
-        }
-
-        std::format_to(out, "\n");
-    }
-};
-
-using Active = std::tuple<SSAStmtPtr, BitVector>;
-
-bool SSA::allocate_registers(Platform platform, ISA isa) noexcept
-{
-    uint64_t max_registers = platform == Platform_Linux ? 8 : 5;
-    uint64_t return_register = 0; /* xmm0 */
-
-    /* variable, register */
-    std::vector<Active> actives;
-
-    std::vector<SSAStmtPtr> statements = this->_statements;
-    std::ranges::sort(statements, [](const SSAStmtPtr& a, const SSAStmtPtr& b) -> bool {
-        return a->get_live_range().start < b->get_live_range().start;
-    });
-
-    for(auto& stmt : statements)
-    {
-        /* Remove the expired intervals */
-        auto result = std::remove_if(actives.begin(), actives.end(), [&](const Active& active) -> bool {
-            return std::get<0>(active)->get_live_range().end <= stmt->get_live_range().start;
-        });
-
-        actives.erase(result, actives.end());
-
-        BitVector used_regs;
-
-        for(const auto [_, regs] : actives)
-        {
-            used_regs.operator|(regs);
-        }
-
-        uint64_t reg = used_regs.ffz();
-        stmt->set_register(reg);
-        used_regs.set(reg);
-
-        actives.emplace_back(stmt, used_regs);
-    }
-
-    return true;
 }
 
 MATHSEXPR_NAMESPACE_END

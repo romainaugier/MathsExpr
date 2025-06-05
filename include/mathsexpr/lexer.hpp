@@ -7,7 +7,7 @@
 #if !defined(__MATHSEXPR_LEXER)
 #define __MATHSEXPRLEXER_
 
-#include "mathsexpr/mathsexpr.h"
+#include "mathsexpr/mathsexpr.hpp"
 
 #include <string_view>
 #include <vector>

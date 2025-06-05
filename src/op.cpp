@@ -2,7 +2,7 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/op.h"
+#include "mathsexpr/op.hpp"
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -67,6 +67,19 @@ uint32_t op_binary_from_string(const std::string_view& data) noexcept
     }
 
     return static_cast<uint32_t>(BinaryOpType_Unknown);
+}
+
+bool op_binary_is_commutative(const uint32_t type) noexcept
+{
+    switch(type)
+    {
+        case BinaryOpType_Add:
+        case BinaryOpType_Mul:
+            return true;
+
+        default:
+            return false;
+    }
 }
 
 MATHSEXPR_NAMESPACE_END

@@ -7,7 +7,7 @@
 #if !defined(__MATHSEXPR_SYMTABLE)
 #define __MATHSEXPR_SYMTABLE
 
-#include "mathsexpr/ast.h"
+#include "mathsexpr/ast.hpp"
 
 #include <string_view>
 #include <unordered_map>

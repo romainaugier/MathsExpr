@@ -2,9 +2,10 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/expr.h"
-#include "mathsexpr/log.h"
-#include "mathsexpr/codegen.h"
+#include "mathsexpr/expr.hpp"
+#include "mathsexpr/log.hpp"
+#include "mathsexpr/codegen.hpp"
+#include "mathsexpr/regalloc.hpp"
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -66,7 +67,14 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         ssa.print();
     }
 
-    ssa.allocate_registers(Platform_Linux, ISA_x86_64);
+    RegisterAllocator reg_allocator(Platform_Linux, ISA_x86_64);
+
+    if(!reg_allocator.allocate(ssa.get_statements()))
+    {
+        log_error("Error during register allocation for expression: {}", this->_expr);
+        log_error("Check the log for more information");
+        return false;
+    }
 
     if(debug_flags & ExprPrintFlags_PrintSSARegisterAlloc)
     {
@@ -75,7 +83,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
 
     CodeGenerator generator;
 
-    if(!generator.build(ssa, symtable))
+    if(!generator.build(ssa, reg_allocator, symtable))
     {
         log_error("Error while building CodeGenerator for expression: {}", this->_expr);
         log_error("Check the log for more information");
@@ -84,7 +92,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
 
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorAsString)
     {
-        generator.print(CodeGenISA_x86_64, CodeGenPlatform_Linux);
+        generator.print(ISA_x86_64, Platform_Linux);
     }
 
     return true;

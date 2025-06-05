@@ -2,9 +2,9 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/ast.h"
-#include "mathsexpr/log.h"
-#include "mathsexpr/op.h"
+#include "mathsexpr/ast.hpp"
+#include "mathsexpr/log.hpp"
+#include "mathsexpr/op.hpp"
 
 #include <format>
 
@@ -250,6 +250,8 @@ public:
                 return nullptr;
             }
 
+            left->set_needs_reg(true);
+
             left = std::make_shared<ASTNodeBinaryOp>(left, right, op);
         }
 
@@ -278,6 +280,8 @@ public:
             {
                 return nullptr;
             }
+
+            left->set_needs_reg(true);
             
             left = std::make_shared<ASTNodeBinaryOp>(left, right, op);
         }

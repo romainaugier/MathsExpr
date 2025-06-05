@@ -2,135 +2,206 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/codegen.h"
+#include "mathsexpr/codegen.hpp"
+#include "mathsexpr/op.hpp"
 
 /*
     https://www.thejat.in/learn/system-v-amd64-calling-convention
     https://learn.microsoft.com/en-us/cpp/build/x64-software-conventions?view=msvc-170#x64-register-usage
+    https://www.felixcloutier.com/x86/
 */
 
 MATHSEXPR_NAMESPACE_BEGIN
 
-static constexpr uint32_t VARIABLES_MEM_ID = 0;
-static constexpr uint32_t LITERALS_MEM_ID = 1;
+/* Instructions */
 
-const char* mem_id_to_string(uint32_t mem_id, uint32_t platform) noexcept
+void InstrMov::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
 {
     switch(platform)
     {
-        case CodeGenPlatform_Linux:
-            return mem_id == 0 ? "rdi" : "rsi";
-        case CodeGenPlatform_Windows:
-            return mem_id == 0 ? "rcx" : "rdx";
-        default:
-            return "???";
+        case Platform_Linux:
+        case Platform_Windows:
+            std::format_to(std::back_inserter(out), "mov ");
+            this->_mem_loc_to->as_string(out, isa, platform);
+            std::format_to(std::back_inserter(out), ", ");
+            this->_mem_loc_from->as_string(out, isa, platform);
+            break;
     }
 }
 
-void Register::to_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
+void InstrMov::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
 {
-    if(this->is_virtual())
+
+}
+
+/* Binop instructions */
+
+void InstrAdd::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+    switch(platform)
     {
-        std::format_to(std::back_inserter(out), "v{}", this->_id);
+        case Platform_Linux:
+        case Platform_Windows:
+            std::format_to(std::back_inserter(out), "addsd ");
+            this->_left->as_string(out, isa, platform);
+            std::format_to(std::back_inserter(out), ", ");
+            this->_right->as_string(out, isa, platform);
+            break;
     }
-    else
+}
+
+void InstrAdd::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+
+}
+
+void InstrSub::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+    switch(platform)
     {
-        std::format_to(std::back_inserter(out), "v{}", this->_id);
+        case Platform_Linux:
+        case Platform_Windows:
+            std::format_to(std::back_inserter(out), "subsd ");
+            this->_left->as_string(out, isa, platform);
+            std::format_to(std::back_inserter(out), ", ");
+            this->_right->as_string(out, isa, platform);
+            break;
     }
 }
 
-void Operand::to_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
+void InstrSub::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
 {
-    return std::visit([&](auto&& arg) -> void {
-        using T = std::decay_t<decltype(arg)>;
 
-        if constexpr (std::is_same_v<T, Register>) 
-        {
-            arg.to_string(out, isa, platform);
-        }
-        else if constexpr (std::is_same_v<T, StackOffset>)
-        {
-            std::format_to(std::back_inserter(out), "[rbp]");
-        }
-        else if constexpr (std::is_same_v<T, MemoryAddress>) 
-        {
-            /* The values for variables are stored in an array which ptr is in rdi */
-            if(platform == CodeGenPlatform_Linux)
-            {
-                if(arg.get_offset() == 0)
-                {
-                    std::format_to(std::back_inserter(out), "[{}]", mem_id_to_string(arg.get_id(), platform));
-                }
-                else
-                {
-                    std::format_to(std::back_inserter(out), 
-                                   "[{}+{}]",
-                                   mem_id_to_string(arg.get_id(), platform),
-                                   arg.get_offset());
-                }
-            }
-        }
-        else
-        {
-            std::format_to(std::back_inserter(out), "?");
-        }
-    }, this->data);
 }
 
-/* Instructions */
-
-void InstructionMov::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
+void InstrMul::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
 {
-    std::format_to(std::back_inserter(out), "mov ");
-    this->_dst.to_string(out, isa, platform),
-    std::format_to(std::back_inserter(out), ", ");
-    this->_src.to_string(out, isa, platform);
-}
-
-void InstructionMov::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
-{
-}
-
-/* Code Generator */
-
-bool CodeGenerator::build(const SSA& ssa, SymbolTable& symtable) noexcept
-{
-    for(const auto statement : ssa.get_statements())
+    switch(platform)
     {
-        switch(statement->type_id())
+        case Platform_Linux:
+        case Platform_Windows:
+            std::format_to(std::back_inserter(out), "mulsd ");
+            this->_left->as_string(out, isa, platform);
+            std::format_to(std::back_inserter(out), ", ");
+            this->_right->as_string(out, isa, platform);
+            break;
+    }
+}
+
+void InstrMul::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+
+}
+
+void InstrDiv::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+    switch(platform)
+    {
+        case Platform_Linux:
+        case Platform_Windows:
+            std::format_to(std::back_inserter(out), "divsd ");
+            this->_left->as_string(out, isa, platform);
+            std::format_to(std::back_inserter(out), ", ");
+            this->_right->as_string(out, isa, platform);
+            break;
+    }
+}
+
+void InstrDiv::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+
+}
+
+/* Code Generation */
+
+bool CodeGenerator::build(const SSA& ssa,
+                          const RegisterAllocator& regalloc,
+                          SymbolTable& symtable) noexcept
+{
+    this->_instructions.clear();
+
+    for(auto stmt : ssa.get_statements())
+    {
+        switch(stmt->type_id())
         {
             case SSAStmtTypeId_Variable:
             {
-                const SSAStmtVariable* variable = statement_cast<SSAStmtVariable>(statement.get());
+                const SSAStmtVariable* variable = statement_const_cast<SSAStmtVariable>(stmt.get());
 
-                MemoryAddress addr_offset(VARIABLES_MEM_ID, 
-                                          symtable.get_variable_offset(variable->get_name()));
+                MemLocPtr reg = regalloc.get_memloc(stmt);
+                MemLocPtr mem = std::make_shared<Memory>(MemLocRegister_Variables, 
+                                                         symtable.get_variable_offset(variable->get_name()));
 
-                Register reg(variable->get_version());
+                InstrPtr mov = std::make_shared<InstrMov>(mem, reg);
 
-                InstructionPtr instruction = std::make_shared<InstructionMov>(Operand::from_memory_address(addr_offset),
-                                                                              Operand::from_register(reg));
-
-                this->_instructions.push_back(instruction);
+                this->_instructions.push_back(mov);
 
                 break;
             }
             case SSAStmtTypeId_Literal:
             {
-                const SSAStmtLiteral* literal = statement_cast<SSAStmtLiteral>(statement.get());
+                break;
+            }
+            case SSAStmtTypeId_UnOp:
+            {
+                break;
+            }
+            case SSAStmtTypeId_BinOp:
+            {
+                auto binop = statement_cast<SSAStmtBinOp>(stmt.get());
 
-                MemoryAddress addr_offset(LITERALS_MEM_ID,
-                                          symtable.get_literal_offset(literal->get_name()));
+                MemLocPtr left = regalloc.get_memloc(binop->get_left());
+                MemLocPtr right = regalloc.get_memloc(binop->get_right());
 
-                Register reg(literal->get_version());
-
-                InstructionPtr instruction = std::make_shared<InstructionMov>(Operand::from_memory_address(addr_offset),
-                                                                              Operand::from_register(reg));
-
-                this->_instructions.push_back(instruction);
+                switch(binop->get_op())
+                {
+                    case BinaryOpType_Add:
+                    {
+                        InstrPtr instr = std::make_shared<InstrAdd>(left, right);
+                        this->_instructions.push_back(instr);
+                        break;
+                    }
+                    case BinaryOpType_Sub:
+                    {
+                        InstrPtr instr = std::make_shared<InstrSub>(left, right);
+                        this->_instructions.push_back(instr);
+                        break;
+                    }
+                    case BinaryOpType_Mul:
+                    {
+                        InstrPtr instr = std::make_shared<InstrMul>(left, right);
+                        this->_instructions.push_back(instr);
+                        break;
+                    }
+                    case BinaryOpType_Div:
+                    {
+                        InstrPtr instr = std::make_shared<InstrDiv>(left, right);
+                        this->_instructions.push_back(instr);
+                        break;
+                    }
+                }
 
                 break;
             }
+            case SSAStmtTypeId_FuncOp:
+            {
+                break;
+            }
+            case SSAStmtTypeId_AllocateStackOp:
+            {
+                break;
+            }
+            case SSAStmtTypeId_SpillOp:
+            {
+                break;
+            }
+            case SSAStmtTypeId_LoadOp:
+            {
+                break;
+            }
+
+            default:
+                break;
         }
     }
 

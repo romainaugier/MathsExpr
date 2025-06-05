@@ -7,7 +7,7 @@
 #if !defined(__MATHSEXPR_LOG)
 #define __MATHSEXPR_LOG
 
-#include "mathsexpr/mathsexpr.h"
+#include "mathsexpr/mathsexpr.hpp"
 
 #include <format>
 #include <iostream>

@@ -2,8 +2,8 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved. 
 
-#include "mathsexpr/lexer.h"
-#include "mathsexpr/log.h"
+#include "mathsexpr/lexer.hpp"
+#include "mathsexpr/log.hpp"
 
 #include <cctype>
 #include <format>

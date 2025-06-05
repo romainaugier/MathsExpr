@@ -2,7 +2,7 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved. 
 
-#include "mathsexpr/log.h"
+#include "mathsexpr/log.hpp"
 
 #include <stdio.h>
 
