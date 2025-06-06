@@ -67,9 +67,9 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         ssa.print();
     }
 
-    RegisterAllocator reg_allocator(Platform_Linux, ISA_x86_64);
+    RegisterAllocator reg_allocator(Platform_Windows, ISA_x86_64);
 
-    if(!reg_allocator.allocate(ssa.get_statements()))
+    if(!reg_allocator.allocate(ssa.get_statements(), symtable))
     {
         log_error("Error during register allocation for expression: {}", this->_expr);
         log_error("Check the log for more information");
@@ -92,7 +92,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
 
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorAsString)
     {
-        generator.print(ISA_x86_64, Platform_Linux);
+        generator.print(ISA_x86_64, Platform_Windows);
     }
 
     return true;

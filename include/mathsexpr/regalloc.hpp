@@ -9,16 +9,18 @@
 
 #include "mathsexpr/ssa.hpp"
 #include "mathsexpr/bytecode.hpp"
+#include "mathsexpr/symtable.hpp"
 
 #include <unordered_map>
 
 MATHSEXPR_NAMESPACE_BEGIN
 
-enum MemLocType : uint32_t
+enum MemLocTypeId : uint32_t
 {
-    MemLocType_Register,
-    MemLocType_Stack,
-    MemLocType_Memory,
+    MemLocTypeId_Invalid,
+    MemLocTypeId_Register,
+    MemLocTypeId_Stack,
+    MemLocTypeId_Memory,
 };
 
 enum MemLocRegister : uint32_t
@@ -45,6 +47,20 @@ using MemLocPtr = std::shared_ptr<MemLoc>;
 
 static constexpr uint64_t INVALID_REGISTER = std::numeric_limits<uint64_t>::max();
 
+class MATHSEXPR_API MemLocInvalid : public MemLoc
+{
+public:
+    virtual void print() const noexcept override {}
+
+    static constexpr int static_type_id() noexcept { return MemLocTypeId_Invalid; }
+
+    virtual int type_id() const noexcept override { return this->static_type_id(); }
+
+    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
+
+    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
+};
+
 class MATHSEXPR_API Register : public MemLoc
 {
     uint64_t _id;
@@ -54,7 +70,7 @@ public:
 
     virtual void print() const noexcept override {}
 
-    static constexpr int static_type_id() noexcept { return MemLocType_Register; }
+    static constexpr int static_type_id() noexcept { return MemLocTypeId_Register; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
@@ -72,7 +88,7 @@ public:
 
     virtual void print() const noexcept override {}
 
-    static constexpr int static_type_id() noexcept { return MemLocType_Stack; }
+    static constexpr int static_type_id() noexcept { return MemLocTypeId_Stack; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
@@ -93,7 +109,7 @@ public:
 
     virtual void print() const noexcept override {}
 
-    static constexpr int static_type_id() noexcept { return MemLocType_Memory; }
+    static constexpr int static_type_id() noexcept { return MemLocTypeId_Memory; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
@@ -124,6 +140,10 @@ class MATHSEXPR_API RegisterAllocator
 
     static uint64_t get_max_available_registers(Platform platform, ISA isa) noexcept;
 
+    static uint32_t get_fp_call_return_value_register(Platform platform, ISA isa) noexcept;
+
+    static uint64_t get_fp_call_max_args_register(Platform platform, ISA isa) noexcept;
+
 public:
     RegisterAllocator(Platform platform, 
                       ISA isa) : _platform(platform),
@@ -132,13 +152,15 @@ public:
                                                                                                isa))
                                  {}
 
-    bool allocate(std::vector<SSAStmtPtr>& statements) noexcept;
+    bool allocate(std::vector<SSAStmtPtr>& statements, const SymbolTable& symtable) noexcept;
 
     MemLocPtr get_memloc(SSAStmtPtr& stmt) const noexcept
     {
+        static MemLocPtr invalid = std::make_shared<MemLocInvalid>();
+
         auto it = this->_mapping.find(stmt);
 
-        return it != this->_mapping.end() ? it->second : nullptr;
+        return it != this->_mapping.end() ? it->second : invalid;
     }
 };
 

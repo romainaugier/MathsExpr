@@ -6,6 +6,30 @@
 
 MATHSEXPR_NAMESPACE_BEGIN
 
+const char* platform_as_string(uint32_t platform) noexcept
+{
+    switch(platform)
+    {
+        case Platform_Linux:
+            return "Linux";
+        case Platform_Windows:
+            return "Windows";
+        default:
+            return "Unknown platform";
+    }
+}
+
+const char* isa_as_string(uint32_t isa) noexcept
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+            return "x86_64";
+        default:
+            return "Unknown ISA";
+    }
+}
+
 const char* gp_register_x86_64_as_string(uint32_t reg) noexcept
 {
     switch(reg)
@@ -86,11 +110,11 @@ uint32_t get_base_ptr_literal_register(uint32_t platform, uint32_t isa) noexcept
             {
                 case Platform_Linux:
                 {
-                    return GpRegisters_x86_64_RDX;
+                    return GpRegisters_x86_64_RSI;
                 }
                 case Platform_Windows:
                 {
-                    return GpRegisters_x86_64_RSI;
+                    return GpRegisters_x86_64_RDX;
                 }
 
                 default:

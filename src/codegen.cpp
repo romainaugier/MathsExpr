@@ -4,16 +4,15 @@
 
 #include "mathsexpr/codegen.hpp"
 #include "mathsexpr/op.hpp"
+#include "mathsexpr/log.hpp"
 
 /*
-    https://www.thejat.in/learn/system-v-amd64-calling-convention
-    https://learn.microsoft.com/en-us/cpp/build/x64-software-conventions?view=msvc-170#x64-register-usage
     https://www.felixcloutier.com/x86/
 */
 
 MATHSEXPR_NAMESPACE_BEGIN
 
-/* Instructions */
+/* Memory instructions */
 
 void InstrMov::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
 {
@@ -34,7 +33,9 @@ void InstrMov::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const
 
 }
 
-/* Binop instructions */
+/* Unary ops instructions */
+
+/* Binary ops instructions */
 
 void InstrAdd::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
 {
@@ -112,6 +113,50 @@ void InstrDiv::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const
 
 }
 
+/* Func ops instructions */
+
+void InstrCall::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+{
+
+}
+
+void InstrCall::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
+{
+    switch(platform)
+    {
+        case Platform_Linux:
+        case Platform_Windows:
+            std::format_to(std::back_inserter(out), "call {}", this->_call_name);
+            break;
+    }
+}
+
+/* Terminator instructions */
+
+void InstrRet::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+{
+
+}
+
+void InstrRet::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                    std::format_to(std::back_inserter(out), "ret");
+                    break;
+            }
+
+            break;
+        }
+    }
+}
+
 /* Code Generation */
 
 bool CodeGenerator::build(const SSA& ssa,
@@ -140,6 +185,20 @@ bool CodeGenerator::build(const SSA& ssa,
             }
             case SSAStmtTypeId_Literal:
             {
+                auto literal = statement_cast<SSAStmtLiteral>(stmt.get());
+
+                MemLocPtr loc = regalloc.get_memloc(stmt);
+
+                if(loc->type_id() == MemLocTypeId_Register)
+                {
+                    MemLocPtr mem = std::make_shared<Memory>(MemLocRegister_Literals, 
+                                                             symtable.get_literal_offset(literal->get_name()));
+
+                    InstrPtr mov = std::make_shared<InstrMov>(mem, loc);
+
+                    this->_instructions.push_back(mov);
+                }
+
                 break;
             }
             case SSAStmtTypeId_UnOp:
@@ -151,7 +210,24 @@ bool CodeGenerator::build(const SSA& ssa,
                 auto binop = statement_cast<SSAStmtBinOp>(stmt.get());
 
                 MemLocPtr left = regalloc.get_memloc(binop->get_left());
+
+                if(left == nullptr)
+                {
+                    log_error("Error during codegen. Cannot find location of symbol: {}",
+                              binop->get_left()->get_version());
+
+                    return false;
+                }
+
                 MemLocPtr right = regalloc.get_memloc(binop->get_right());
+
+                if(right == nullptr)
+                {
+                    log_error("Error during codegen. Cannot find location of symbol: {}",
+                              binop->get_right()->get_version());
+
+                    return false;
+                }
 
                 switch(binop->get_op())
                 {
@@ -185,6 +261,18 @@ bool CodeGenerator::build(const SSA& ssa,
             }
             case SSAStmtTypeId_FuncOp:
             {
+                auto funcop = statement_cast<SSAStmtFunctionOp>(stmt.get());
+
+                if(funcop == nullptr)
+                {
+                    log_error("Internal error during codegen: expected func op, got: {}", stmt->type_id());
+                    return false;
+                }
+
+                InstrPtr call = std::make_shared<InstrCall>(funcop->get_name());
+
+                this->_instructions.push_back(call);
+
                 break;
             }
             case SSAStmtTypeId_AllocateStackOp:
@@ -193,10 +281,40 @@ bool CodeGenerator::build(const SSA& ssa,
             }
             case SSAStmtTypeId_SpillOp:
             {
+                auto spillop = statement_cast<SSAStmtSpillOp>(stmt.get());
+
+                if(spillop == nullptr)
+                {
+                    log_error("Internal error during codegen: expected spill op, got: {}", stmt->type_id());
+                    return false;
+                }
+
+                MemLocPtr reg = regalloc.get_memloc(spillop->get_operand());
+                MemLocPtr mem = regalloc.get_memloc(stmt);
+
+                InstrPtr mov = std::make_shared<InstrMov>(reg, mem);
+
+                this->_instructions.push_back(mov);
+
                 break;
             }
             case SSAStmtTypeId_LoadOp:
             {
+                auto loadop = statement_cast<SSAStmtLoadOp>(stmt.get());
+
+                if(loadop == nullptr)
+                {
+                    log_error("Internal error during codegen: expected load op, got: {}", stmt->type_id());
+                    return false;
+                }
+
+                MemLocPtr reg = regalloc.get_memloc(stmt);
+                MemLocPtr mem = regalloc.get_memloc(loadop->get_spill());
+
+                InstrPtr mov = std::make_shared<InstrMov>(mem, reg);
+
+                this->_instructions.push_back(mov);
+
                 break;
             }
 
@@ -204,6 +322,8 @@ bool CodeGenerator::build(const SSA& ssa,
                 break;
         }
     }
+
+    this->_instructions.push_back(std::make_shared<InstrRet>());
 
     return true;
 }

@@ -19,10 +19,14 @@ enum Platform : uint32_t
     Platform_Linux,
 };
 
+MATHSEXPR_API const char* platform_as_string(uint32_t platform) noexcept;
+
 enum ISA : uint32_t
 {
     ISA_x86_64,
 };
+
+MATHSEXPR_API const char* isa_as_string(uint32_t isa) noexcept;
 
 static constexpr uint32_t INVALID_GP_REGISTER = std::numeric_limits<uint32_t>::max();
 
@@ -48,6 +52,8 @@ enum GpRegisters_x86_64 : uint32_t
 };
 
 MATHSEXPR_API const char* gp_register_x86_64_as_string(uint32_t reg) noexcept;
+
+static constexpr uint32_t INVALID_FP_REGISTER = std::numeric_limits<uint32_t>::max();
 
 /* Floating Point Registers (omitting the upper 8-15 since not supported on abis) */
 enum FpRegisters_x86_64 : uint32_t

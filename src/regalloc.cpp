@@ -9,7 +9,22 @@
 #include <ranges>
 #include <algorithm>
 
+/*
+    https://www.thejat.in/learn/system-v-amd64-calling-convention
+    https://learn.microsoft.com/en-us/cpp/build/x64-software-conventions?view=msvc-170#x64-register-usage
+*/
+
 MATHSEXPR_NAMESPACE_BEGIN
+
+void MemLocInvalid::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
+{
+    std::format_to(std::back_inserter(out), "inv");
+}
+
+void MemLocInvalid::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+{
+
+}
 
 void Register::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
 {
@@ -308,6 +323,7 @@ uint64_t RegisterAllocator::get_max_available_registers(Platform platform, ISA i
                 case ISA_x86_64:
                     return 5;
                 default:
+                    log_error("Unsupported ISA: {}", isa_as_string(isa));
                     return 5;
             }
         }
@@ -318,10 +334,78 @@ uint64_t RegisterAllocator::get_max_available_registers(Platform platform, ISA i
                 case ISA_x86_64:
                     return 8;
                 default:
+                    log_error("Unsupported ISA: {}", isa_as_string(isa));
                     return 8;
             }
         }
         default:
+            log_error("Unsupported platform: {}", platform_as_string(platform));
+            return 0;
+    }
+}
+
+uint32_t RegisterAllocator::get_fp_call_return_value_register(Platform platform, ISA isa) noexcept
+{
+    switch(platform)
+    {
+        case Platform_Windows:
+        {
+            switch(isa)
+            {
+                case ISA_x86_64:
+                    return FpRegisters_x86_64_Xmm0;
+                default:
+                    log_error("Unsupported ISA: {}", isa_as_string(isa));
+                    return INVALID_FP_REGISTER;
+            }
+        }
+        case Platform_Linux:
+        {
+            switch(isa)
+            {
+                case ISA_x86_64:
+                    return FpRegisters_x86_64_Xmm0;
+                default:
+                    log_error("Unsupported ISA: {}", isa_as_string(isa));
+                    return INVALID_FP_REGISTER;
+            }
+        }
+
+        default:
+            log_error("Unsupported platform: {}", platform_as_string(platform));
+            return INVALID_FP_REGISTER;
+    }
+}
+
+uint64_t RegisterAllocator::get_fp_call_max_args_register(Platform platform, ISA isa) noexcept
+{
+    switch(platform)
+    {
+        case Platform_Windows:
+        {
+            switch(isa)
+            {
+                case ISA_x86_64:
+                    return 4;
+                default:
+                    log_error("Unsupported ISA: {}", isa_as_string(isa));
+                    return 0;
+            }
+        }
+        case Platform_Linux:
+        {
+            switch(isa)
+            {
+                case ISA_x86_64:
+                    return 8;
+                default:
+                    log_error("Unsupported ISA: {}", isa_as_string(isa));
+                    return 0;
+            }
+        }
+
+        default:
+            log_error("Unsupported platform: {}", platform_as_string(platform));
             return 0;
     }
 }
@@ -339,9 +423,90 @@ Active select_spill_candidate(std::vector<Active>& candidates) noexcept
     return candidate;
 }
 
-bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements) noexcept
+bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements,
+                                 const SymbolTable& symtable) noexcept
 {
     this->_mapping.clear();
+
+    std::vector<Active> actives;
+
+    /* 
+        Allocation of constrained ops: - function calls return in xmm0
+                                       - expr return value in xmm0
+                                       - function args must go in xmm[i]
+    
+    */
+
+    for(size_t i = 0; i < statements.size(); i++)
+    {
+        auto& stmt = statements[i];
+
+        switch(stmt->type_id())
+        {
+            case SSAStmtTypeId_Literal:
+            {
+                auto literal = statement_cast<SSAStmtLiteral>(stmt.get());
+
+                if(literal == nullptr)
+                {
+                    log_error("Internal error during register allocation. Expected literal, got: {}",
+                              stmt->type_id());
+
+                    return false;
+                }
+
+                this->_mapping[stmt] = std::make_shared<Memory>(MemLocRegister_Literals,
+                                                                symtable.get_literal_offset(literal->get_name()));
+
+                break;
+            }
+
+            case SSAStmtTypeId_FuncOp:
+            {
+                RegisterId return_value_register = RegisterAllocator::get_fp_call_return_value_register(this->_platform, 
+                                                                                                        this->_isa);
+
+                if(return_value_register == INVALID_FP_REGISTER)
+                {
+                    log_error("Error during register allocation, check the log for more information");
+                    return false;
+                }
+
+                this->_mapping[stmt] = std::make_shared<Register>(static_cast<uint64_t>(return_value_register));
+                actives.emplace_back(stmt, return_value_register);
+
+                auto funcop = statement_cast<SSAStmtFunctionOp>(stmt.get());
+
+                if(funcop == nullptr)
+                {
+                    log_error("Internal error during register allocation. Expected func op, got: {}", 
+                              stmt->type_id());
+                    return false;
+                }
+
+                if(funcop->get_arguments().size() > RegisterAllocator::get_fp_call_max_args_register(this->_platform,
+                                                                                                     this->_isa))
+                {
+                    return false;
+                }
+
+                for(auto [i, argument] : std::ranges::enumerate_view(funcop->get_arguments()))
+                {
+                    this->_mapping[argument] = std::make_shared<Register>(i);
+                    actives.emplace_back(argument, i);
+                }
+
+                break;
+            }
+        }
+    }
+
+    RegisterId reg = get_fp_call_return_value_register(this->_platform, this->_isa);
+
+    this->_mapping[statements.back()] = std::make_shared<Register>(reg);
+    actives.emplace_back(statements.back(), reg);
+
+    /* Allocation of non-constrained ops */
 
     std::vector<SSAStmtPtr> statements_sorted(statements.size());
 
@@ -351,16 +516,12 @@ bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements) noexcept
         return a->get_live_range().start < b->get_live_range().start;
     });
 
-    std::vector<Active> actives;
-
-    /* To handle spill/load */
     std::unordered_map<SSAStmtPtr, SSAStmtPtr> spilled;
     StackOffset stack_offset = 0;
-    uint64_t num_insertions = 0;
 
-    for(size_t i = 0; i < statements.size(); i++)
+    for(size_t i = 0; i < statements_sorted.size(); i++)
     {
-        auto& stmt = statements[i];
+        auto& stmt = statements_sorted[i];
 
         /* Remove expired intervals from the actives, freeing registers */
         auto remove_result = std::remove_if(actives.begin(), actives.end(), [&](const Active& active) -> bool {
@@ -369,7 +530,12 @@ bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements) noexcept
 
         actives.erase(remove_result, actives.end());
 
-        /* Check if we can reuse an operand register */
+        if(this->_mapping.contains(stmt))
+        {
+            continue;
+        }
+
+        /* Check if we can reuse a register used in the op to store the result */
         RegisterId reusable_register = ssa_statement_get_reusable_register(stmt);
 
         if(reusable_register != INVALID_STMT_REGISTER)
@@ -389,41 +555,32 @@ bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements) noexcept
         RegisterId available_register = used_registers.ffz();
 
         /* Handle spilling */
-        if(available_register > this->_max_registers)
+        if(available_register >= this->_max_registers)
         {
             auto [to_spill, free_reg] = select_spill_candidate(actives);
 
-            SSAStmtPtr spill_stmt = std::make_shared<SSAStmtSpillOp>(to_spill);
+            SSAStmtPtr spill_stmt = std::make_shared<SSAStmtSpillOp>(to_spill, statements.size());
             this->_mapping[spill_stmt] = std::make_shared<Stack>(stack_offset);
             stack_offset += 8;
 
             spilled[to_spill] = spill_stmt;
 
-            statements[i + num_insertions] = spill_stmt;
-
-            num_insertions++;
-            i++;
+            auto insert_pos = std::find(statements.begin(), statements.end(), to_spill);
+            statements.insert(insert_pos + 1, spill_stmt);
 
             available_register = free_reg;
         }
 
-        auto insert_load = [&](SSAStmtPtr spill_stmt) -> bool {
-            MemLocPtr memloc = this->_mapping[spill_stmt];
+        auto insert_load = [&](SSAStmtPtr spill_stmt, SSAStmtPtr target_stmt) -> bool {
+            SSAStmtPtr load_stmt = std::make_shared<SSAStmtLoadOp>(spill_stmt);
 
-            auto stack = memloc_cast<Stack>(memloc.get());
+            auto insert_pos = std::find(statements.begin(), statements.end(), target_stmt);
+            statements.insert(insert_pos + 1, load_stmt);
 
-            if(stack == nullptr)
-            {
-                log_error("Internal error during register allocation: expected stack address, got:");
-                // TODO: memloc->print();
-                return false;
-            }
+            const uint64_t live_range_start = std::distance(statements.begin(), insert_pos);
 
-            SSAStmtPtr load_stmt = std::make_shared<SSAStmtLoadOp>();
-
-            statements[i + num_insertions] = load_stmt;
-
-            num_insertions++;
+            load_stmt->get_live_range().start = live_range_start;
+            load_stmt->get_live_range().end = live_range_start + 1;
 
             return true;
         };
@@ -448,12 +605,22 @@ bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements) noexcept
                 {
                     SSAStmtPtr spill_stmt = it->second;
 
-                    if(!insert_load(spill_stmt))
+                    if(!insert_load(spill_stmt, stmt))
                     {
                         return false;
                     }
+                }
+                else
+                {
+                    auto operand = unop->get_operand();
 
-                    spilled.erase(it);
+                    if(operand->type_id() == SSAStmtTypeId_Literal)
+                    {
+                        if(!insert_load(operand, stmt))
+                        {
+                            return false;
+                        }
+                    }
                 }
 
                 break;
@@ -464,9 +631,19 @@ bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements) noexcept
 
                 if(binop == nullptr)
                 {
-                    log_error("Internal error during register allocation: expected binary op stmt, got:");
-
+                    log_error("Internal error during register allocation: expected binary op stmt, got: {}",
+                              stmt->type_id());
                     return false;
+                }
+
+                /* before looking for spilling, check if operands are literals */
+                if(binop->get_left()->type_id() == SSAStmtTypeId_Literal)
+                {
+                    if(op_binary_is_commutative(binop->get_op()) && 
+                       binop->get_right()->type_id() != SSAStmtTypeId_Literal)
+                    {
+                        binop->swap_operands();
+                    }
                 }
 
                 auto left_it = spilled.find(binop->get_left());
@@ -484,16 +661,21 @@ bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements) noexcept
                     {
                         SSAStmtPtr spill_stmt = left_it->second;
 
-                        if(!insert_load(spill_stmt))
+                        if(!insert_load(spill_stmt, stmt))
                         {
                             return false;
                         }
-
-                        spilled.erase(left_it);
+                    }
+                }
+                else if(binop->get_left()->type_id() == SSAStmtTypeId_Literal)
+                {
+                    if(!insert_load(binop->get_left(), stmt))
+                    {
+                        return false;
                     }
                 }
 
-                /* If the right operand has been spilled, we can let it on the stack */
+                /* if the right operand has been spilled, we can let it on the stack */
                 if(right_it != spilled.end())
                 {
                     binop->set_right(right_it->second);

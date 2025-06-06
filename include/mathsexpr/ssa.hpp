@@ -270,13 +270,21 @@ public:
     static constexpr int static_type_id() { return 7; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
+
+    SSAStmtPtr& get_operand() noexcept { return this->_operand; }
+
+    const SSAStmtPtr& get_operand() const noexcept { return this->_operand; }
 };
 
 class MATHSEXPR_API SSAStmtLoadOp : public SSAStmt
 {
+    SSAStmtPtr _spill;
+
 public:
-    SSAStmtLoadOp(uint64_t version = INVALID_STMT_VERSION,
-                  uint64_t live_range_start = 0) : SSAStmt(version) {}
+    SSAStmtLoadOp(SSAStmtPtr spill,
+                  uint64_t version = INVALID_STMT_VERSION,
+                  uint64_t live_range_start = 0) : SSAStmt(version),
+                                                   _spill(spill) {}
 
     virtual ~SSAStmtLoadOp() override {}
 
@@ -287,6 +295,10 @@ public:
     static constexpr int static_type_id() { return 8; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
+
+    SSAStmtPtr& get_spill() noexcept { return this->_spill; }
+
+    const SSAStmtPtr& get_spill() const noexcept { return this->_spill; }
 };
 
 template<typename T>
@@ -301,11 +313,11 @@ const T* statement_const_cast(const SSAStmt* stmt) noexcept
 }
 
 template<typename T>
-T* statement_cast( SSAStmt* stmt) noexcept
+T* statement_cast(SSAStmt* stmt) noexcept
 {
     if(stmt != nullptr && stmt->type_id() == T::static_type_id())
     {
-        return static_cast< T*>(stmt);
+        return static_cast<T*>(stmt);
     }
 
     return nullptr;
