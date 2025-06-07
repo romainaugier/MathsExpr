@@ -7,7 +7,9 @@
 #include "mathsexpr/log.hpp"
 
 /*
+    For reference:
     https://www.felixcloutier.com/x86/
+    https://asmjit.com/parser.html
 */
 
 MATHSEXPR_NAMESPACE_BEGIN
