@@ -4,10 +4,12 @@
 
 #include "mathsexpr/ssa.hpp"
 #include "mathsexpr/op.hpp"
+#include "mathsexpr/log.hpp"
 
 #include <ranges>
 #include <unordered_map>
 #include <algorithm>
+#include <format>
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -151,6 +153,88 @@ uint64_t SSAStmtLoadOp::canonicalize() const noexcept
 }
 
 /* SSA */
+
+bool SSA::calculate_live_ranges() noexcept
+{
+    for(auto [i, statement]: std::ranges::enumerate_view(this->_statements))
+    {
+        statement->get_live_range().start = i;
+        statement->get_live_range().end = i + 1;
+
+        switch(statement->type_id())
+        {
+            case SSAStmtTypeId_UnOp:
+            {
+                auto unop = statement_cast<SSAStmtUnOp>(statement.get());
+
+                if(unop == nullptr)
+                {
+                    log_error("Internal error during live ranges calculation. Expected unop, got: {}",
+                              statement->type_id());
+                    return false;
+                }
+
+                unop->get_operand()->get_live_range().set_end(i);
+
+                break;
+            }
+
+            case SSAStmtTypeId_BinOp:
+            {
+                auto binop = statement_cast<SSAStmtBinOp>(statement.get());
+
+                if(binop == nullptr)
+                {
+                    log_error("Internal error during live ranges calculation. Expected binop, got: {}",
+                              statement->type_id());
+                    return false;
+                }
+
+                binop->get_left()->get_live_range().set_end(i);
+                binop->get_right()->get_live_range().set_end(i);
+
+                break;
+            }
+
+            case SSAStmtTypeId_FuncOp:
+            {
+                auto funcop = statement_cast<SSAStmtFunctionOp>(statement.get());
+
+                if(funcop == nullptr)
+                {
+                    log_error("Internal error during live ranges calculation. Expected funcop, got: {}",
+                              statement->type_id());
+                    return false;
+                }
+
+                for(auto arg : funcop->get_arguments())
+                {
+                    arg->get_live_range().set_end(i);
+                }
+
+                break;
+            }
+
+            case SSAStmtTypeId_SpillOp:
+            {
+                auto spillop = statement_cast<SSAStmtSpillOp>(statement.get());
+
+                if(spillop == nullptr)
+                {
+                    log_error("Internal error during live ranges calculation. Expected spillop, got: {}",
+                              statement->type_id());
+                    return false;
+                }
+
+                spillop->get_operand()->get_live_range().set_end(i);
+
+                break;
+            }
+        }
+    }
+
+    return true;
+}
 
 bool SSA::build_from_ast(const AST& ast) noexcept
 {

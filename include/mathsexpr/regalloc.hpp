@@ -152,7 +152,7 @@ public:
                                                                                                isa))
                                  {}
 
-    bool allocate(std::vector<SSAStmtPtr>& statements, const SymbolTable& symtable) noexcept;
+    bool allocate(SSA& ssa, const SymbolTable& symtable) noexcept;
 
     MemLocPtr get_memloc(SSAStmtPtr& stmt) const noexcept
     {

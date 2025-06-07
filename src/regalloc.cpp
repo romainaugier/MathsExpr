@@ -8,6 +8,8 @@
 
 #include <ranges>
 #include <algorithm>
+#include <cstring>
+#include <unordered_set>
 
 /*
     https://www.thejat.in/learn/system-v-amd64-calling-convention
@@ -416,283 +418,336 @@ using Active = std::pair<SSAStmtPtr, RegisterId>;
 
 Active select_spill_candidate(std::vector<Active>& candidates) noexcept
 {
-    Active candidate = std::move(candidates[0]);
+    uint64_t duration = 0;
+    size_t position = 0;
 
-    candidates.erase(candidates.begin());
+    for(auto [i, candidate] : std::ranges::enumerate_view(candidates))
+    {
+        if(candidate.first->get_live_range().get_duration() > duration)
+        {
+            duration = candidate.first->get_live_range().get_duration();
+            position = i;
+        }
+    }
+
+    Active candidate = std::move(candidates[position]);
+
+    candidates.erase(candidates.begin() + position);
 
     return candidate;
 }
 
-bool RegisterAllocator::allocate(std::vector<SSAStmtPtr>& statements,
+bool RegisterAllocator::allocate(SSA& ssa,
                                  const SymbolTable& symtable) noexcept
 {
-    this->_mapping.clear();
-
-    std::vector<Active> actives;
-
-    /* 
-        Allocation of constrained ops: - function calls return in xmm0
-                                       - expr return value in xmm0
-                                       - function args must go in xmm[i]
-    
-    */
-
-    for(size_t i = 0; i < statements.size(); i++)
+    /* multi-pass register allocation using linear scan. we iteratively insert spills/loads */
+    while(true)
     {
-        auto& stmt = statements[i];
+        this->_mapping.clear();
 
-        switch(stmt->type_id())
+        if(!ssa.calculate_live_ranges())
         {
-            case SSAStmtTypeId_Literal:
+            return false;
+        }
+
+        std::vector<Active> actives;
+
+        std::vector<SSAStmtPtr>& statements = ssa.get_statements();
+
+        /* 
+            Allocation of constrained ops: - function calls return in xmm0
+                                        - expr return value in xmm0
+                                        - function args must go in xmm[i]
+                                        - allocate the memory address of each literal
+        
+        */
+
+        for(size_t i = 0; i < statements.size(); i++)
+        {
+            auto& stmt = statements[i];
+
+            switch(stmt->type_id())
             {
-                auto literal = statement_cast<SSAStmtLiteral>(stmt.get());
-
-                if(literal == nullptr)
+                case SSAStmtTypeId_Literal:
                 {
-                    log_error("Internal error during register allocation. Expected literal, got: {}",
-                              stmt->type_id());
+                    auto literal = statement_cast<SSAStmtLiteral>(stmt.get());
 
-                    return false;
+                    if(literal == nullptr)
+                    {
+                        log_error("Internal error during register allocation. Expected literal, got: {}",
+                                stmt->type_id());
+
+                        return false;
+                    }
+
+                    this->_mapping[stmt] = std::make_shared<Memory>(MemLocRegister_Literals,
+                                                                    symtable.get_literal_offset(literal->get_name()));
+
+                    break;
                 }
 
-                this->_mapping[stmt] = std::make_shared<Memory>(MemLocRegister_Literals,
-                                                                symtable.get_literal_offset(literal->get_name()));
+                case SSAStmtTypeId_FuncOp:
+                {
+                    RegisterId return_value_register = RegisterAllocator::get_fp_call_return_value_register(this->_platform, 
+                                                                                                            this->_isa);
 
-                break;
+                    if(return_value_register == INVALID_FP_REGISTER)
+                    {
+                        log_error("Error during register allocation, check the log for more information");
+                        return false;
+                    }
+
+                    this->_mapping[stmt] = std::make_shared<Register>(static_cast<uint64_t>(return_value_register));
+                    actives.emplace_back(stmt, return_value_register);
+
+                    auto funcop = statement_cast<SSAStmtFunctionOp>(stmt.get());
+
+                    if(funcop == nullptr)
+                    {
+                        log_error("Internal error during register allocation. Expected func op, got: {}", 
+                                stmt->type_id());
+                        return false;
+                    }
+
+                    if(funcop->get_arguments().size() > RegisterAllocator::get_fp_call_max_args_register(this->_platform,
+                                                                                                        this->_isa))
+                    {
+                        return false;
+                    }
+
+                    for(auto [i, argument] : std::ranges::enumerate_view(funcop->get_arguments()))
+                    {
+                        this->_mapping[argument] = std::make_shared<Register>(i);
+                        actives.emplace_back(argument, i);
+                    }
+
+                    break;
+                }
             }
-
-            case SSAStmtTypeId_FuncOp:
-            {
-                RegisterId return_value_register = RegisterAllocator::get_fp_call_return_value_register(this->_platform, 
-                                                                                                        this->_isa);
-
-                if(return_value_register == INVALID_FP_REGISTER)
-                {
-                    log_error("Error during register allocation, check the log for more information");
-                    return false;
-                }
-
-                this->_mapping[stmt] = std::make_shared<Register>(static_cast<uint64_t>(return_value_register));
-                actives.emplace_back(stmt, return_value_register);
-
-                auto funcop = statement_cast<SSAStmtFunctionOp>(stmt.get());
-
-                if(funcop == nullptr)
-                {
-                    log_error("Internal error during register allocation. Expected func op, got: {}", 
-                              stmt->type_id());
-                    return false;
-                }
-
-                if(funcop->get_arguments().size() > RegisterAllocator::get_fp_call_max_args_register(this->_platform,
-                                                                                                     this->_isa))
-                {
-                    return false;
-                }
-
-                for(auto [i, argument] : std::ranges::enumerate_view(funcop->get_arguments()))
-                {
-                    this->_mapping[argument] = std::make_shared<Register>(i);
-                    actives.emplace_back(argument, i);
-                }
-
-                break;
-            }
-        }
-    }
-
-    RegisterId reg = get_fp_call_return_value_register(this->_platform, this->_isa);
-
-    this->_mapping[statements.back()] = std::make_shared<Register>(reg);
-    actives.emplace_back(statements.back(), reg);
-
-    /* Allocation of non-constrained ops */
-
-    std::vector<SSAStmtPtr> statements_sorted(statements.size());
-
-    std::copy(statements.begin(), statements.end(), statements_sorted.begin());
-
-    std::sort(statements_sorted.begin(), statements_sorted.end(), [](const SSAStmtPtr& a, const SSAStmtPtr& b) -> bool {
-        return a->get_live_range().start < b->get_live_range().start;
-    });
-
-    std::unordered_map<SSAStmtPtr, SSAStmtPtr> spilled;
-    StackOffset stack_offset = 0;
-
-    for(size_t i = 0; i < statements_sorted.size(); i++)
-    {
-        auto& stmt = statements_sorted[i];
-
-        /* Remove expired intervals from the actives, freeing registers */
-        auto remove_result = std::remove_if(actives.begin(), actives.end(), [&](const Active& active) -> bool {
-            return active.first->get_live_range().end < stmt->get_live_range().start;
-        });
-
-        actives.erase(remove_result, actives.end());
-
-        if(this->_mapping.contains(stmt))
-        {
-            continue;
         }
 
-        /* Check if we can reuse a register used in the op to store the result */
-        RegisterId reusable_register = ssa_statement_get_reusable_register(stmt);
+        RegisterId rv_reg = get_fp_call_return_value_register(this->_platform, this->_isa);
 
-        if(reusable_register != INVALID_STMT_REGISTER)
-        {
-            this->_mapping[stmt] = std::make_shared<Register>(reusable_register);
-            actives.emplace_back(stmt, reusable_register);
-            continue;
-        }
+        SSAStmtPtr& last_stmt = statements.back();
 
-        BitVector used_registers;
+        this->_mapping[last_stmt] = std::make_shared<Register>(rv_reg);
+        actives.emplace_back(last_stmt, rv_reg);
 
-        for(const auto& [_, reg] : actives)
-        {
-            used_registers.set(reg);
-        }
-
-        RegisterId available_register = used_registers.ffz();
-
-        /* Handle spilling */
-        if(available_register >= this->_max_registers)
-        {
-            auto [to_spill, free_reg] = select_spill_candidate(actives);
-
-            SSAStmtPtr spill_stmt = std::make_shared<SSAStmtSpillOp>(to_spill, statements.size());
-            this->_mapping[spill_stmt] = std::make_shared<Stack>(stack_offset);
-            stack_offset += 8;
-
-            spilled[to_spill] = spill_stmt;
-
-            auto insert_pos = std::find(statements.begin(), statements.end(), to_spill);
-            statements.insert(insert_pos + 1, spill_stmt);
-
-            available_register = free_reg;
-        }
-
-        auto insert_load = [&](SSAStmtPtr spill_stmt, SSAStmtPtr target_stmt) -> bool {
-            SSAStmtPtr load_stmt = std::make_shared<SSAStmtLoadOp>(spill_stmt);
-
-            auto insert_pos = std::find(statements.begin(), statements.end(), target_stmt);
-            statements.insert(insert_pos + 1, load_stmt);
-
-            const uint64_t live_range_start = std::distance(statements.begin(), insert_pos);
-
-            load_stmt->get_live_range().start = live_range_start;
-            load_stmt->get_live_range().end = live_range_start + 1;
-
-            return true;
-        };
-
-        /* Handle loading */
-        switch (stmt->type_id())
+        switch(last_stmt->type_id())
         {
             case SSAStmtTypeId_UnOp:
             {
-                auto unop = statement_const_cast<SSAStmtUnOp>(stmt.get());
+                auto unop = statement_cast<SSAStmtUnOp>(last_stmt.get());
 
                 if(unop == nullptr)
                 {
-                    log_error("Internal error during register allocation: expected unary op stmt, got:");
-                    // stmt->print();
+                    log_error("Error during return value register allocation. Expected unop, got: {}",
+                            last_stmt->type_id());
                     return false;
                 }
 
-                auto it = spilled.find(unop->get_operand());
+                auto operand = unop->get_operand();
 
-                if(it != spilled.end())
-                {
-                    SSAStmtPtr spill_stmt = it->second;
-
-                    if(!insert_load(spill_stmt, stmt))
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    auto operand = unop->get_operand();
-
-                    if(operand->type_id() == SSAStmtTypeId_Literal)
-                    {
-                        if(!insert_load(operand, stmt))
-                        {
-                            return false;
-                        }
-                    }
-                }
+                this->_mapping[operand] = std::make_shared<Register>(rv_reg);
+                actives.emplace_back(operand, rv_reg);
 
                 break;
             }
+
             case SSAStmtTypeId_BinOp:
             {
-                auto binop = statement_cast<SSAStmtBinOp>(stmt.get());
+                auto binop = statement_cast<SSAStmtBinOp>(last_stmt.get());
 
                 if(binop == nullptr)
                 {
-                    log_error("Internal error during register allocation: expected binary op stmt, got: {}",
-                              stmt->type_id());
+                    log_error("Error during return value register allocation. Expected binop, got: {}",
+                            last_stmt->type_id());
                     return false;
                 }
 
-                /* before looking for spilling, check if operands are literals */
-                if(binop->get_left()->type_id() == SSAStmtTypeId_Literal)
-                {
-                    if(op_binary_is_commutative(binop->get_op()) && 
-                       binop->get_right()->type_id() != SSAStmtTypeId_Literal)
-                    {
-                        binop->swap_operands();
-                    }
-                }
+                auto left = binop->get_left();
 
-                auto left_it = spilled.find(binop->get_left());
-                auto right_it = spilled.find(binop->get_right());
+                this->_mapping[left] = std::make_shared<Register>(rv_reg);
+                actives.emplace_back(left, rv_reg);
 
-                if(left_it != spilled.end())
-                {
-                    /* to avoid a load, we can invert operands and loadi the left operand */
-                    if(op_binary_is_commutative(binop->get_op()) &&
-                       right_it == spilled.end())
-                    {
-                        binop->swap_operands();
-                    }
-                    else
-                    {
-                        SSAStmtPtr spill_stmt = left_it->second;
-
-                        if(!insert_load(spill_stmt, stmt))
-                        {
-                            return false;
-                        }
-                    }
-                }
-                else if(binop->get_left()->type_id() == SSAStmtTypeId_Literal)
-                {
-                    if(!insert_load(binop->get_left(), stmt))
-                    {
-                        return false;
-                    }
-                }
-
-                /* if the right operand has been spilled, we can let it on the stack */
-                if(right_it != spilled.end())
-                {
-                    binop->set_right(right_it->second);
-                }
-            }
-            case SSAStmtTypeId_FuncOp:
-            {
                 break;
             }
-            
-            default:
-                break;
         }
 
-        this->_mapping[stmt] = std::make_shared<Register>(available_register);
+        /* Allocation of non-constrained ops */
 
-        actives.emplace_back(stmt, available_register);
+        std::vector<SSAStmtPtr> statements_sorted(statements.size());
+
+        std::copy(statements.begin(), statements.end(), statements_sorted.begin());
+
+        std::sort(statements_sorted.begin(), statements_sorted.end(), [](const SSAStmtPtr& a, const SSAStmtPtr& b) -> bool {
+            return a->get_live_range().start < b->get_live_range().start;
+        });
+
+        std::unordered_set<SSAStmtPtr> to_spill;
+
+        for(size_t i = 0; i < statements_sorted.size(); i++)
+        {
+            auto& stmt = statements_sorted[i];
+
+            /* Remove expired intervals from the actives, freeing registers */
+            auto remove_result = std::remove_if(actives.begin(), actives.end(), [&](const Active& active) -> bool {
+                return active.first->get_live_range().end < stmt->get_live_range().start;
+            });
+
+            actives.erase(remove_result, actives.end());
+
+            if(this->_mapping.contains(stmt))
+            {
+                continue;
+            }
+
+            /* Check if we can reuse a register used in the op to store the result */
+            RegisterId reusable_register = ssa_statement_get_reusable_register(stmt);
+
+            if(reusable_register != INVALID_STMT_REGISTER)
+            {
+                this->_mapping[stmt] = std::make_shared<Register>(reusable_register);
+                actives.emplace_back(stmt, reusable_register);
+                continue;
+            }
+
+            if(stmt->type_id() == SSAStmtTypeId_SpillOp)
+            {
+                auto spill = statement_cast<SSAStmtSpillOp>(stmt.get());
+
+                auto remove_result = std::remove_if(actives.begin(), actives.end(), [&](const Active& active) -> bool {
+                    return active.first == spill->get_operand();
+                });
+
+                actives.erase(remove_result, actives.end());
+            }
+
+            BitVector used_registers;
+
+            for(const auto& [_, reg] : actives)
+            {
+                used_registers.set(reg);
+            }
+
+            RegisterId available_register = used_registers.ffz();
+
+            /* Handle spilling */
+            if(available_register >= this->_max_registers)
+            {
+                auto [stmt_to_spill, free_reg] = select_spill_candidate(actives);
+
+                to_spill.insert(stmt_to_spill);
+
+                available_register = free_reg;
+            }
+
+            this->_mapping[stmt] = std::make_shared<Register>(available_register);
+            actives.emplace_back(stmt, available_register);
+        }
+
+        /* register allocation is successful */
+        if(to_spill.size() == 0)
+        {
+            break;
+        }
+        else
+        {
+
+        }
+
+        std::vector<SSAStmtPtr> new_statements;
+        new_statements.reserve(statements.size() + to_spill.size() * 2);
+
+        for(auto stmt : statements)
+        {
+            /* Check if we need to add loads */
+            switch(stmt->type_id())
+            {
+                case SSAStmtTypeId_UnOp:
+                {
+                    auto unop = statement_cast<SSAStmtUnOp>(stmt.get());
+
+                    if(unop == nullptr)
+                    {
+                        log_error("Error during load op insertion. Expected unop, got: {}",
+                                  stmt->type_id());
+                        return false;
+                    }
+
+                    auto& operand = unop->get_operand();
+
+                    if(to_spill.contains(operand))
+                    {
+                        SSAStmtPtr load = std::make_shared<SSAStmtLoadOp>(operand);
+                        unop->set_operand(load);
+                    }
+
+                    break;
+                }
+
+                case SSAStmtTypeId_BinOp:
+                {
+                    auto binop = statement_cast<SSAStmtBinOp>(stmt.get());
+
+                    if(binop == nullptr)
+                    {
+                        log_error("Error during load op insertion. Expected binop, got: {}",
+                                  stmt->type_id());
+                        return false;
+                    }
+
+                    auto& left = binop->get_left();
+
+                    if(to_spill.contains(left))
+                    {
+                        SSAStmtPtr load = std::make_shared<SSAStmtLoadOp>(left);
+                        binop->set_left(load);
+                    }
+
+                    /* 
+                        We don't need to load the right operand because it can be used in
+                        immediate mode
+                        We take care of that below, once all registers have been allocated
+                    */
+
+                    break;
+                }
+
+                case SSAStmtTypeId_FuncOp:
+                {
+                    auto funcop = statement_cast<SSAStmtFunctionOp>(stmt.get());
+
+                    if(funcop == nullptr)
+                    {
+                        log_error("Error during load op insertion. Expected funcop, got: {}",
+                                  stmt->type_id());
+                        return false;
+                    }
+
+                    for(auto [i, arg] : std::ranges::enumerate_view(funcop->get_arguments()))
+                    {
+                        if(to_spill.contains(arg))
+                        {
+                            SSAStmtPtr load = std::make_shared<SSAStmtLoadOp>(arg);
+                            funcop->get_arguments()[i] = load;
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+            new_statements.emplace_back(std::move(stmt));
+
+            /* Check if we need to add a spill */
+            if(to_spill.contains(stmt))
+            {
+                new_statements.emplace_back(std::make_shared<SSAStmtSpillOp>(stmt));
+            }
+        }
+
+        ssa.get_statements() = std::move(new_statements);
     }
 
     return true;

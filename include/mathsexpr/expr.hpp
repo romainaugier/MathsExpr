@@ -7,7 +7,7 @@
 #if !defined(__MATHSEXPR_EXPR)
 #define __MATHSEXPR_EXPR
 
-#include "mathsexpr/mathsexpr.hpp"
+#include "mathsexpr/constants.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -45,7 +45,7 @@ enum ExprPrintFlags : uint64_t
     ExprPrintFlags_PrintSSAOptimizationSteps = 0x10,
     ExprPrintFlags_PrintSSARegisterAlloc = 0x20,
     ExprPrintFlags_PrintCodeGeneratorAsString = 0x40,
-    ExprPrintFlags_PrintAll = std::numeric_limits<uint64_t>::max(),
+    ExprPrintFlags_PrintAll = UINT64_T_MAX,
 };
 
 using Variables = std::unordered_map<std::string, double, string_hash, std::equal_to<>>;

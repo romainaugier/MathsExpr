@@ -34,6 +34,16 @@ struct LiveRange {
     uint64_t end;
 
     LiveRange(uint64_t start, uint64_t end) : start(start), end(end) {}
+
+    void set_end(uint64_t end) noexcept 
+    {
+        this->end = std::max(this->end, end);
+    }
+
+    uint64_t get_duration() const noexcept 
+    {
+        return this->end - this->start;
+    }
 };
 
 class MATHSEXPR_API SSAStmt
@@ -153,6 +163,8 @@ public:
     SSAStmtPtr& get_operand() noexcept { return this->_operand; }
 
     const SSAStmtPtr& get_operand() const noexcept { return this->_operand; }
+
+    void set_operand(SSAStmtPtr& operand) noexcept { this->_operand = operand; }
 };
 
 class MATHSEXPR_API SSAStmtBinOp : public SSAStmt
@@ -333,6 +345,8 @@ class MATHSEXPR_API SSA
 
 public:
     SSA() {}
+
+    bool calculate_live_ranges() noexcept;
 
     void print() const noexcept;
 
