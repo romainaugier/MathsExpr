@@ -20,6 +20,23 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    double a = 4.0;
+    double b = 18.0;
+
+    auto [success, res] = expr.evaluate(a, b);
+
+    if(!success)
+    {
+        mathsexpr::log_error("Error during expression evaluation");
+        return false;
+    }
+
+    mathsexpr::log_info("expr \"{}\" evaluated: ({}, {}) = {}", 
+                        expression,
+                        a,
+                        b,
+                        res);
+
     mathsexpr::log_info("Finished Expr test");
 
     return 0;

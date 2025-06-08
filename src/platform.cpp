@@ -6,6 +6,16 @@
 
 MATHSEXPR_NAMESPACE_BEGIN
 
+uint32_t get_current_platform() noexcept
+{
+#if defined(MATHSEXPR_WIN)
+    return Platform_Windows;
+#elif defined(MATHSEXPR_LINUX)
+    return Platform_Linux;
+#endif /* defined(MATHSEXPR_WIN) */
+    return Platform_Invalid;
+}
+
 const char* platform_as_string(uint32_t platform) noexcept
 {
     switch(platform)
@@ -17,6 +27,14 @@ const char* platform_as_string(uint32_t platform) noexcept
         default:
             return "Unknown platform";
     }
+}
+
+uint32_t get_current_isa() noexcept
+{
+#if defined(MATHSEXPR_X64)
+    return ISA_x86_64;
+#endif /* defined(MATHSEXPR_X64) */
+    return ISA_Invalid;
 }
 
 const char* isa_as_string(uint32_t isa) noexcept

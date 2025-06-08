@@ -11,19 +11,44 @@ MATHSEXPR_NAMESPACE_BEGIN
 
 std::tuple<bool, double> Expr::_evaluate_internal(const double* values) const noexcept
 {
-    MATHSEXPR_NOT_IMPLEMENTED;
+    if(!this->_exec_mem.is_locked())
+    {
+        log_error("ExecMem is not locked nor ready, compile expr before evaluating it");
+        return std::make_tuple(false, 0.0);
+    }
+
+    auto exec_func = this->_exec_mem.as_function();
+
+    double result = exec_func(values, this->_literals.data());
+
+    return std::make_tuple(true, result);
 }
 
 bool Expr::compile(uint64_t debug_flags) noexcept
 {
-    this->_byte_code.clear();
+    uint32_t platform = get_current_platform();
+
+    if(platform == Platform_Invalid)
+    {
+        log_error("Current platform is not supported");
+        return false;
+    }
+
+    uint32_t isa = get_current_isa();
+
+    if(isa == ISA_Invalid)
+    {
+        log_error("Current isa is not supported");
+        return false;
+    }
+
     this->_variables.clear();
 
     log_debug("Compiling expression: {}", this->_expr);
 
-    auto [success, tokens] = lexer_lex_expression(this->_expr);
+    auto [lex_success, tokens] = lexer_lex_expression(this->_expr);
 
-    if(!success)
+    if(!lex_success)
     {
         log_error("Error while lexing expression: {}", this->_expr);
         log_error("Check the log for more information");
@@ -53,6 +78,11 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         symtable.print();
     }
 
+    for(auto [name, _] : symtable.get_variables())
+    {
+        this->_variables.insert(name);
+    }
+
     SSA ssa;
 
     if(!ssa.build_from_ast(ast))
@@ -67,7 +97,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         ssa.print();
     }
 
-    RegisterAllocator reg_allocator(Platform_Windows, ISA_x86_64);
+    RegisterAllocator reg_allocator(platform, isa);
 
     if(!reg_allocator.allocate(ssa, symtable))
     {
@@ -92,25 +122,39 @@ bool Expr::compile(uint64_t debug_flags) noexcept
 
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorAsString)
     {
-        generator.print(ISA_x86_64, Platform_Windows);
+        generator.print(isa, platform);
+    }
+
+    auto [gen_success, bytecode] = generator.as_bytecode(isa, platform);
+
+    if(!gen_success)
+    {
+        log_error("Error during bytecode generation for expression: {}", this->_expr);
+        log_error("Check the log for more information");
+        return false;
     }
 
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorByteCodeAsHexCode)
     {
-        auto [success, bytecode] = generator.as_bytecode(ISA_x86_64, Platform_Windows);
-
-        if(!success)
-        {
-            log_error("Error during bytecode generation for expression: {}", this->_expr);
-            log_error("Check the log for more information");
-            return false;
-        }
-
         std::string hexcode;
         bytecode_as_hex_string(bytecode, hexcode);
 
         std::cout << "BYTECODE" << "\n" << hexcode << "\n";
     }
+
+    ExecMem exec_mem(bytecode.size() * sizeof(std::byte));
+
+    if(!exec_mem.write(bytecode))
+    {
+        return false;
+    }
+
+    if(!exec_mem.lock())
+    {
+        return false;
+    }
+
+    this->_exec_mem = std::move(exec_mem);
 
     return true;
 }

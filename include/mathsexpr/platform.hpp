@@ -17,14 +17,20 @@ enum Platform : uint32_t
 {
     Platform_Windows,
     Platform_Linux,
+    Platform_Invalid,
 };
+
+MATHSEXPR_API uint32_t get_current_platform() noexcept;
 
 MATHSEXPR_API const char* platform_as_string(uint32_t platform) noexcept;
 
 enum ISA : uint32_t
 {
     ISA_x86_64,
+    ISA_Invalid,
 };
+
+MATHSEXPR_API uint32_t get_current_isa() noexcept;
 
 MATHSEXPR_API const char* isa_as_string(uint32_t isa) noexcept;
 

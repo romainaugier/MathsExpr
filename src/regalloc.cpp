@@ -366,7 +366,7 @@ const MemLocPtr RegisterAllocator::get_reusable_register(const SSAStmtPtr& state
     }
 }
 
-uint64_t RegisterAllocator::get_max_available_registers(Platform platform, ISA isa) noexcept
+uint64_t RegisterAllocator::get_max_available_registers(uint32_t platform, uint32_t isa) noexcept
 {
     switch(platform)
     {
@@ -398,7 +398,7 @@ uint64_t RegisterAllocator::get_max_available_registers(Platform platform, ISA i
     }
 }
 
-uint32_t RegisterAllocator::get_fp_call_return_value_register(Platform platform, ISA isa) noexcept
+uint32_t RegisterAllocator::get_fp_call_return_value_register(uint32_t platform, uint32_t isa) noexcept
 {
     switch(platform)
     {
@@ -431,7 +431,7 @@ uint32_t RegisterAllocator::get_fp_call_return_value_register(Platform platform,
     }
 }
 
-uint64_t RegisterAllocator::get_fp_call_max_args_register(Platform platform, ISA isa) noexcept
+uint64_t RegisterAllocator::get_fp_call_max_args_register(uint32_t platform, uint32_t isa) noexcept
 {
     switch(platform)
     {

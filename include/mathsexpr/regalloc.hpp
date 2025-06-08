@@ -147,30 +147,30 @@ class MATHSEXPR_API RegisterAllocator
 {
     std::unordered_map<SSAStmtPtr, MemLocPtr> _mapping;
 
-    Platform _platform;
-    ISA _isa;
+    uint32_t _platform;
+    uint32_t _isa;
 
     uint64_t _max_registers;
 
-    static uint64_t get_max_available_registers(Platform platform, 
-                                                ISA isa) noexcept;
+    static uint64_t get_max_available_registers(uint32_t platform, 
+                                                uint32_t isa) noexcept;
 
-    static uint32_t get_fp_call_return_value_register(Platform platform,
-                                                      ISA isa) noexcept;
+    static uint32_t get_fp_call_return_value_register(uint32_t platform,
+                                                      uint32_t isa) noexcept;
 
-    static uint64_t get_fp_call_max_args_register(Platform platform,
-                                                  ISA isa) noexcept;
+    static uint64_t get_fp_call_max_args_register(uint32_t platform,
+                                                  uint32_t isa) noexcept;
 
     static bool prepass_commutative_operand_swap(SSA& ssa) noexcept;
 
     const MemLocPtr get_reusable_register(const SSAStmtPtr& statement) const noexcept;
 
 public:
-    RegisterAllocator(Platform platform, 
-                      ISA isa) : _platform(platform),
-                                 _isa(isa),
-                                 _max_registers(RegisterAllocator::get_max_available_registers(platform, 
-                                                                                               isa))
+    RegisterAllocator(uint32_t platform, 
+                      uint32_t isa) : _platform(platform),
+                                      _isa(isa),
+                                      _max_registers(RegisterAllocator::get_max_available_registers(platform, 
+                                                                                                    isa))
                                  {}
 
     bool allocate(SSA& ssa, const SymbolTable& symtable) noexcept;

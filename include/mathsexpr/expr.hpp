@@ -8,6 +8,7 @@
 #define __MATHSEXPR_EXPR
 
 #include "mathsexpr/constants.hpp"
+#include "mathsexpr/execmem.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -55,7 +56,7 @@ class MATHSEXPR_API Expr
 {
     std::string _expr;
 
-    std::vector<std::byte> _byte_code;
+    ExecMem _exec_mem;
 
     std::set<std::string_view> _variables;
     std::vector<double> _literals;
@@ -73,14 +74,18 @@ public:
     {
         if(sizeof...(Args) != this->_variables.size())
         {
+            log_error("You passed {} arguments but the expression needs {}", 
+                      sizeof...(Args),
+                      this->_variables.size());
+
             return std::make_tuple(false, 0.0);
         }
 
         std::array<double, sizeof...(Args)> values;
 
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
-            ((values[Is] = const_cast<double>(std::get<Is>(std::forward_as_tuple(std::forward<Args>(args))))), ...);
-        }(std::make_index_sequence<sizeof...(Args)>{});
+                ((values[Is] = static_cast<double>(args)), ...);
+            }(std::make_index_sequence<sizeof...(Args)>{});
 
         return this->_evaluate_internal(values.data());
     }

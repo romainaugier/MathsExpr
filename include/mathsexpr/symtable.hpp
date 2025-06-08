@@ -90,6 +90,11 @@ public:
     size_t get_variable_offset(std::string_view variable_name) const noexcept;
 
     size_t get_literal_offset(std::string_view literal_name) const noexcept;
+
+    const std::unordered_map<std::string_view, SymbolVariable>& get_variables() const noexcept
+    {
+        return this->_variables;
+    }
 };
 
 MATHSEXPR_NAMESPACE_END
