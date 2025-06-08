@@ -95,6 +95,23 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         generator.print(ISA_x86_64, Platform_Windows);
     }
 
+    if(debug_flags & ExprPrintFlags_PrintCodeGeneratorByteCodeAsHexCode)
+    {
+        auto [success, bytecode] = generator.as_bytecode(ISA_x86_64, Platform_Windows);
+
+        if(!success)
+        {
+            log_error("Error during bytecode generation for expression: {}", this->_expr);
+            log_error("Check the log for more information");
+            return false;
+        }
+
+        std::string hexcode;
+        bytecode_as_hex_string(bytecode, hexcode);
+
+        std::cout << "BYTECODE" << "\n" << hexcode << "\n";
+    }
+
     return true;
 }
 

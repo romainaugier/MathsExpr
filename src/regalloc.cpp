@@ -23,9 +23,14 @@ void MemLocInvalid::as_string(std::string& out, uint32_t isa, uint32_t platform)
     std::format_to(std::back_inserter(out), "inv");
 }
 
-void MemLocInvalid::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+std::byte MemLocInvalid::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
 {
+    return BYTE(0);
+}
 
+RmOffByte MemLocInvalid::as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept
+{
+    return std::make_pair(BYTE(0), BYTE(0));
 }
 
 void Register::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
@@ -41,24 +46,38 @@ void Register::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
                     std::format_to(std::back_inserter(out), "xmm{}", this->_id);
                     break;
             }
+
+            break;
         }
     }
 }
 
-void Register::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+std::byte Register::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
 {
     switch(isa)
     {
         case ISA_x86_64:
         {
-            switch(platform)
-            {
-                case Platform_Windows:
-                case Platform_Linux:
-                    break;
-            }
+            const std::byte reg = x86_64::encode_platform_fp_register(this->_id);
+            return reg << 3;
         }
     }
+
+    return BYTE(0);
+}
+
+RmOffByte Register::as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            const std::byte reg = x86_64::encode_platform_fp_register(this->_id);
+            return std::make_pair((x86_64::MOD_DIRECT) | reg, BYTE(0));
+        }
+    }
+
+    return std::make_pair(BYTE(0), BYTE(0));
 }
 
 void Stack::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
@@ -80,20 +99,20 @@ void Stack::as_string(std::string& out, uint32_t isa, uint32_t platform) const n
     }
 }
 
-void Stack::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+std::byte Stack::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
+{
+    return BYTE(0);
+}
+
+RmOffByte Stack::as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept
 {
     switch(isa)
     {
         case ISA_x86_64:
-        {
-            switch(platform)
-            {
-                case Platform_Windows:
-                case Platform_Linux:
-                    break;
-            }
-        }
+            return std::make_pair((x86_64::MOD_INDIRECT_DISP8) | x86_64::RBP, BYTE(this->_offset));
     }
+
+    return std::make_pair(BYTE(0), BYTE(0));
 }
 
 void Memory::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
@@ -125,24 +144,43 @@ void Memory::as_string(std::string& out, uint32_t isa, uint32_t platform) const 
                     break;
                 }
             }
+
+            break;
         }
     }
 }
 
-void Memory::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+std::byte Memory::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
+{
+    return BYTE(0);
+}
+
+RmOffByte Memory::as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept
 {
     switch(isa)
     {
         case ISA_x86_64:
         {
-            switch(platform)
+            if(this->_base_ptr == MemLocRegister_Variables)
             {
-                case Platform_Windows:
-                case Platform_Linux:
-                    break;
+                const std::byte reg = x86_64::encode_platform_gp_register(get_base_ptr_variable_register(platform, isa));
+                const std::byte mod = this->_offset > 0 ? x86_64::MOD_INDIRECT_DISP8 : 
+                                                          x86_64::MOD_INDIRECT;
+
+                return std::make_pair(mod | reg, BYTE(this->_offset));
+            }
+            else if(this->_base_ptr == MemLocRegister_Literals)
+            {
+                const std::byte reg = x86_64::encode_platform_gp_register(get_base_ptr_literal_register(platform, isa));
+                const std::byte mod = this->_offset > 0 ? x86_64::MOD_INDIRECT_DISP8 : 
+                                                          x86_64::MOD_INDIRECT;
+
+                return std::make_pair(mod | reg, BYTE(this->_offset));
             }
         }
     }
+
+    return std::make_pair(BYTE(0), BYTE(0));
 }
 
 /* Register allocation on SSA */
@@ -609,7 +647,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
                     }
 
                     if(funcop->get_arguments().size() > RegisterAllocator::get_fp_call_max_args_register(this->_platform,
-                                                                                                        this->_isa))
+                                                                                                         this->_isa))
                     {
                         return false;
                     }
@@ -679,7 +717,9 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
         std::copy(statements.begin(), statements.end(), statements_sorted.begin());
 
-        std::sort(statements_sorted.begin(), statements_sorted.end(), [](const SSAStmtPtr& a, const SSAStmtPtr& b) -> bool {
+        std::sort(statements_sorted.begin(),
+                  statements_sorted.end(),
+                  [](const SSAStmtPtr& a, const SSAStmtPtr& b) -> bool {
             return a->get_live_range().start < b->get_live_range().start;
         });
 
@@ -693,7 +733,9 @@ bool RegisterAllocator::allocate(SSA& ssa,
             auto& stmt = statements_sorted[i];
 
             /* Remove expired intervals from the actives, freeing registers */
-            auto remove_result = std::remove_if(actives.begin(), actives.end(), [&](const Active& active) -> bool {
+            auto remove_result = std::remove_if(actives.begin(), 
+                                                actives.end(),
+                                                [&](const Active& active) -> bool {
                 return active.first->get_live_range().end < stmt->get_live_range().start;
             });
 
@@ -777,7 +819,9 @@ bool RegisterAllocator::allocate(SSA& ssa,
                 this->_mapping[stmt] = std::make_shared<Stack>(stack_offset);
                 stack_offset += 8;
 
-                auto remove_result = std::remove_if(actives.begin(), actives.end(), [&](const Active& active) -> bool {
+                auto remove_result = std::remove_if(actives.begin(), 
+                                                    actives.end(), 
+                                                    [&](const Active& active) -> bool {
                     return active.first == spill->get_operand();
                 });
 
@@ -943,14 +987,18 @@ bool RegisterAllocator::allocate(SSA& ssa,
             {
                 new_statements.emplace_back(std::make_shared<SSAStmtSpillOp>(stmt, version++));
 
-                log_debug("Inserted spill op for ssa var: {}{}", VERSION_CHAR, stmt->get_version());
+                log_debug("Inserted spill op for ssa var: {}{}", 
+                          VERSION_CHAR,
+                          stmt->get_version());
             }
         }
 
         ssa.get_statements() = std::move(new_statements);
     }
 
-    log_debug("Allocated registers in {} passes (max pressure: {})", num_passes, max_pressure);
+    log_debug("Allocated registers in {} passes (max pressure: {})", 
+              num_passes,
+              max_pressure + 1);
 
     return true;
 }

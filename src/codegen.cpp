@@ -22,7 +22,7 @@ void InstrMov::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
     {
         case Platform_Linux:
         case Platform_Windows:
-            std::format_to(std::back_inserter(out), "mov ");
+            std::format_to(std::back_inserter(out), "movsd ");
             this->_mem_loc_to->as_string(out, isa, platform);
             std::format_to(std::back_inserter(out), ", ");
             this->_mem_loc_from->as_string(out, isa, platform);
@@ -32,7 +32,46 @@ void InstrMov::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
 
 void InstrMov::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
 {
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                {
+                    out.push_back(BYTE(0xF2)); /* Prefix */
+                    out.push_back(BYTE(0x0F));
 
+                    if(this->_mem_loc_to->type_id() == MemLocTypeId_Register)
+                    {
+                        out.push_back(BYTE(0x10));
+                    }
+                    else
+                    {
+                        out.push_back(BYTE(0x11));
+                    }
+
+                    std::byte reg_byte = this->_mem_loc_to->as_reg_byte(isa, platform);
+                    auto [rm_byte, offset] = this->_mem_loc_from->as_rm_off_byte(isa, platform);
+
+                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+
+                    out.push_back(mod_reg_rm_byte);
+
+                    if(offset > BYTE(0))
+                    {
+                        out.push_back(offset);
+                    }
+
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
 }
 
 /* Unary ops instructions */
@@ -55,7 +94,38 @@ void InstrAdd::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
 
 void InstrAdd::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
 {
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                {
+                    out.push_back(BYTE(0xF2)); /* Prefix */
+                    out.push_back(BYTE(0x0F));
+                    out.push_back(BYTE(0x58));
 
+                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
+                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
+
+                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+
+                    out.push_back(mod_reg_rm_byte);
+
+                    if(offset > BYTE(0))
+                    {
+                        out.push_back(offset);
+                    }
+
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
 }
 
 void InstrSub::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
@@ -74,7 +144,38 @@ void InstrSub::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
 
 void InstrSub::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
 {
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                {
+                    out.push_back(BYTE(0xF2)); /* Prefix */
+                    out.push_back(BYTE(0x0F));
+                    out.push_back(BYTE(0x5C));
 
+                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
+                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
+
+                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+
+                    out.push_back(mod_reg_rm_byte);
+
+                    if(offset > BYTE(0))
+                    {
+                        out.push_back(offset);
+                    }
+
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
 }
 
 void InstrMul::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
@@ -93,7 +194,38 @@ void InstrMul::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
 
 void InstrMul::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
 {
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                {
+                    out.push_back(BYTE(0xF2)); /* Prefix */
+                    out.push_back(BYTE(0x0F));
+                    out.push_back(BYTE(0x59));
 
+                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
+                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
+
+                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+
+                    out.push_back(mod_reg_rm_byte);
+
+                    if(offset > BYTE(0))
+                    {
+                        out.push_back(offset);
+                    }
+
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
 }
 
 void InstrDiv::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
@@ -112,15 +244,41 @@ void InstrDiv::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
 
 void InstrDiv::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
 {
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                {
+                    out.push_back(BYTE(0xF2)); /* Prefix */
+                    out.push_back(BYTE(0x0F));
+                    out.push_back(BYTE(0x5E));
 
+                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
+                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
+
+                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+
+                    out.push_back(mod_reg_rm_byte);
+
+                    if(offset > BYTE(0))
+                    {
+                        out.push_back(offset);
+                    }
+
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
 }
 
 /* Func ops instructions */
-
-void InstrCall::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
-{
-
-}
 
 void InstrCall::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
 {
@@ -133,12 +291,12 @@ void InstrCall::as_string(std::string& out, uint32_t isa, uint32_t platform) con
     }
 }
 
-/* Terminator instructions */
-
-void InstrRet::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+void InstrCall::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
 {
 
 }
+
+/* Terminator instructions */
 
 void InstrRet::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
 {
@@ -151,6 +309,25 @@ void InstrRet::as_string(std::string& out, uint32_t isa, uint32_t platform) cons
                 case Platform_Linux:
                 case Platform_Windows:
                     std::format_to(std::back_inserter(out), "ret");
+                    break;
+            }
+
+            break;
+        }
+    }
+}
+
+void InstrRet::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                    out.push_back(BYTE(0xC3));
                     break;
             }
 

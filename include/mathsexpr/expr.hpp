@@ -45,6 +45,7 @@ enum ExprPrintFlags : uint64_t
     ExprPrintFlags_PrintSSAOptimizationSteps = 0x10,
     ExprPrintFlags_PrintSSARegisterAlloc = 0x20,
     ExprPrintFlags_PrintCodeGeneratorAsString = 0x40,
+    ExprPrintFlags_PrintCodeGeneratorByteCodeAsHexCode = 0x80,
     ExprPrintFlags_PrintAll = UINT64_T_MAX,
 };
 

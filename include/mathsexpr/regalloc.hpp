@@ -8,7 +8,7 @@
 #define __MATHSEXPR_REGALLOC
 
 #include "mathsexpr/ssa.hpp"
-#include "mathsexpr/bytecode.hpp"
+#include "mathsexpr/bytecode_x86_64.hpp"
 #include "mathsexpr/symtable.hpp"
 
 #include <unordered_map>
@@ -29,6 +29,8 @@ enum MemLocRegister : uint32_t
     MemLocRegister_Literals,
 };
 
+using RmOffByte = std::pair<std::byte, std::byte>;
+
 class MATHSEXPR_API MemLoc
 {
 public:
@@ -40,7 +42,9 @@ public:
 
     virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept = 0;
 
-    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept = 0;
+    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept = 0;
+
+    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept = 0;
 };
 
 using MemLocPtr = std::shared_ptr<MemLoc>;
@@ -58,7 +62,9 @@ public:
 
     virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
+
+    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
 };
 
 class MATHSEXPR_API Register : public MemLoc
@@ -76,7 +82,9 @@ public:
 
     virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
+
+    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
     uint64_t get_id() const noexcept { return this->_id; }
 };
@@ -96,7 +104,9 @@ public:
 
     virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
+
+    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
     uint64_t get_offset() const noexcept { return this->_offset; }
 };
@@ -117,7 +127,9 @@ public:
 
     virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
+
+    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
 };
 
 template<typename T>
