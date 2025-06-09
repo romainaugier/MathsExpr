@@ -30,7 +30,7 @@ int main(int argc, char** argv)
     double e = 6.0;
     double f = 5.0;
 
-    auto [success, res] = expr.evaluate(a, b, c, d, e, f);
+    auto [success, res] = expr.evaluate(d, f, c, e, b, a);
 
     if(!success)
     {
@@ -43,9 +43,9 @@ int main(int argc, char** argv)
                         a, b, c, d, e, f,
                         res);
 
-    if(!DOUBLE_EQ(8.0, res))
+    if(!DOUBLE_EQ(0.003968773703576324, res))
     {
-        // return 1;
+        return 1;
     }
 
     mathsexpr::log_info("Finished spill/load test");

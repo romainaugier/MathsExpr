@@ -73,6 +73,11 @@ public:
 
     std::tuple<bool, double> evaluate(const Variables& variables) const noexcept
     {
+        if(variables.size() != this->_variables.size())
+        {
+            return std::make_tuple(false, 0.0);
+        }
+
         std::vector<double> values;
         values.reserve(this->_variables.size());
 
