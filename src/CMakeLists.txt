@@ -25,6 +25,10 @@ target_include_directories(${PROJECT_NAME}
                            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
                            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
+if(UNIX)
+    target_link_libraries(${PROJECT_NAME} PUBLIC "-lm")
+endif()
+
 install(
     TARGETS ${PROJECT_NAME}
     EXPORT "${PROJECT_NAME}Targets"

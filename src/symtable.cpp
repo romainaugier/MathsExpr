@@ -48,29 +48,23 @@ void SymbolTable::clear() noexcept
 
 void SymbolTable::collect(const AST& ast) noexcept
 {
-    std::deque<const ASTNode*> nodes;
-    nodes.push_back(ast.get_root());
-
     size_t variable_id = 0;
     size_t literal_id = 0;
 
-    while(!nodes.empty())
-    {
-        const ASTNode* current = nodes.front();
-        nodes.pop_front();
-
+    auto pre_order_trav = [&](auto&& self, const ASTNode* current) -> void {
         if(current == nullptr)
         {
-            continue;
+            return;
         }
 
         auto children = current->get_children();
 
         if(children.has_value())
         {
-            nodes.insert(nodes.end(), 
-                         children.value().begin(),
-                         children.value().end());
+            for(auto& child : children.value())
+            {
+                self(self, child);
+            }
         }
 
         if(auto current_variable = node_cast<ASTNodeVariable>(current))
@@ -94,7 +88,9 @@ void SymbolTable::collect(const AST& ast) noexcept
         {
             this->_functions[current_function_call->get_function_name()].push_back(current_function_call);
         }
-    }
+    };
+
+    pre_order_trav(pre_order_trav, ast.get_root());
 }
 
 size_t SymbolTable::get_variable_offset(std::string_view variable_name) const noexcept

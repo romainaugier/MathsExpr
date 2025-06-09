@@ -25,7 +25,7 @@ class MATHSEXPR_API ExecMem
 {
 private:
 
-    void* _memory = nullptr;
+    void* _memory;
     size_t _size;
     bool _locked;
 
@@ -69,9 +69,9 @@ private:
 public:
     using FunctionType = double(*)(const double*, const double*);
 
-    ExecMem() : _size(0), _memory(nullptr), _locked(false) {}
+    ExecMem() : _memory(nullptr), _size(0), _locked(false) {}
 
-    ExecMem(size_t size) : _size(size), _locked(false) 
+    ExecMem(size_t size) : _memory(nullptr), _size(size), _locked(false) 
     {
         this->allocate();
     }
@@ -169,27 +169,6 @@ public:
     size_t size() const { return this->_size; }
     bool is_locked() const { return this->_locked; }
 };
-
-// Usage example:
-/*
-int main() {
-    try {
-        std::vector<std::byte> bytecode = { ... }; // Your machine code here
-        
-        ExecMem exec_mem(4096); // Allocate 4KB
-        exec_mem.write(bytecode);
-        exec_mem.lock();
-        
-        auto func = exec_mem.as_function();
-        double a = 3.14, b = 2.71;
-        double result = func(&a, &b);
-        
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-    return 0;
-}
-*/
 
 MATHSEXPR_NAMESPACE_END
 

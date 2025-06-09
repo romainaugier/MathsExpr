@@ -10,6 +10,8 @@
 #include "mathsexpr/bytecode.hpp"
 #include "mathsexpr/platform.hpp"
 
+#include <unordered_set>
+
 MATHSEXPR_NAMESPACE_BEGIN
 
 #define X86_64_NAMESPACE_BEGIN namespace x86_64 {
@@ -89,10 +91,19 @@ static constexpr std::byte MOD_INDIRECT_DISP8  = BYTE(0x40);  // [reg + imm8]
 static constexpr std::byte MOD_INDIRECT_DISP32 = BYTE(0x80);  // [reg + imm32]
 static constexpr std::byte MOD_DIRECT          = BYTE(0xC0);  // Register to register
 
-// ======== SIB Byte (scale-index-base) if R/M == 100 ========
+// SIB Byte (scale-index-base) if R/M == 100
 // Needed if base == RSP or using scaled index
 // SIB = (scale << 6) | (index << 3) | base
 // scale: 00=1, 01=2, 10=4, 11=8
+
+// Prefixes for pretty-printing of bytecode
+static const std::unordered_set<std::byte> prefixes = {
+    BYTE(0xF2), /* fp64 ops */
+    BYTE(0xC3), /* ret */
+    BYTE(0xC9), /* leave */
+    BYTE(0x55), /* push rbp */
+    BYTE(0x48), /* mov */
+};
 
 X86_64_NAMESPACE_END
 

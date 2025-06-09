@@ -29,8 +29,6 @@ enum MemLocRegister : uint32_t
     MemLocRegister_Literals,
 };
 
-using RmOffByte = std::pair<std::byte, std::byte>;
-
 class MATHSEXPR_API MemLoc
 {
 public:
@@ -44,7 +42,7 @@ public:
 
     virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept = 0;
 
-    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept = 0;
+    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept = 0;
 };
 
 using MemLocPtr = std::shared_ptr<MemLoc>;
@@ -64,7 +62,7 @@ public:
 
     virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
 };
 
 class MATHSEXPR_API Register : public MemLoc
@@ -84,7 +82,7 @@ public:
 
     virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
     uint64_t get_id() const noexcept { return this->_id; }
 };
@@ -106,9 +104,11 @@ public:
 
     virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
     uint64_t get_offset() const noexcept { return this->_offset; }
+
+    int64_t get_signed_offset() const noexcept { return -static_cast<int64_t>(this->_offset); }
 };
 
 class MATHSEXPR_API Memory : public MemLoc
@@ -129,15 +129,28 @@ public:
 
     virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
 
-    virtual RmOffByte as_rm_off_byte(uint32_t isa, uint32_t platform) const noexcept override;
+    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
+
+    uint64_t get_offset() const noexcept { return this->_offset; }
 };
 
 template<typename T>
-const T* memloc_cast(const MemLoc* loc) noexcept
+const T* memloc_const_cast(const MemLoc* loc) noexcept
 {
     if(loc != nullptr && loc->type_id() == T::static_type_id())
     {
         return static_cast<const T*>(loc);
+    }
+
+    return nullptr;
+}
+
+template<typename T>
+T* memloc_cast(MemLoc* loc) noexcept
+{
+    if(loc != nullptr && loc->type_id() == T::static_type_id())
+    {
+        return static_cast<T*>(loc);
     }
 
     return nullptr;

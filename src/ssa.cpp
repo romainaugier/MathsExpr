@@ -92,12 +92,22 @@ void SSAStmtAllocateStackOp::print(std::ostream_iterator<char>& out) const noexc
 
 void SSAStmtSpillOp::print(std::ostream_iterator<char>& out) const noexcept
 {
-    std::format_to(out, "spill {}{}\n", VERSION_CHAR, this->_operand->get_version());
+    std::format_to(out,
+                   "{}{} = spill {}{}\n",
+                   VERSION_CHAR,
+                   this->get_version(),
+                   VERSION_CHAR,
+                   this->_operand->get_version());
 }
 
 void SSAStmtLoadOp::print(std::ostream_iterator<char>& out) const noexcept
 {
-    std::format_to(out, "{}{} = load\n", VERSION_CHAR, this->get_version());
+    std::format_to(out,
+                   "{}{} = load {}{}\n",
+                   VERSION_CHAR,
+                   this->get_version(),
+                   VERSION_CHAR,
+                   this->_spill->get_version());
 }
 
 void SSA::print() const noexcept

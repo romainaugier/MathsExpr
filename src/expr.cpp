@@ -43,6 +43,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
     }
 
     this->_variables.clear();
+    this->_literals.clear();
 
     log_debug("Compiling expression: {}", this->_expr);
 
@@ -78,9 +79,15 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         symtable.print();
     }
 
+    /* Variables and literals are stored in order of parsing */
     for(auto [name, _] : symtable.get_variables())
     {
         this->_variables.insert(name);
+    }
+
+    for(auto [_, lit] : symtable.get_literals())
+    {
+        this->_literals.push_back(lit.get_value());
     }
 
     SSA ssa;
@@ -137,7 +144,12 @@ bool Expr::compile(uint64_t debug_flags) noexcept
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorByteCodeAsHexCode)
     {
         std::string hexcode;
-        bytecode_as_hex_string(bytecode, hexcode);
+
+        switch(isa)
+        {
+            case ISA_x86_64:
+                bytecode_as_hex_string(bytecode, hexcode, x86_64::prefixes);
+        }
 
         std::cout << "BYTECODE" << "\n" << hexcode << "\n";
     }
@@ -155,6 +167,9 @@ bool Expr::compile(uint64_t debug_flags) noexcept
     }
 
     this->_exec_mem = std::move(exec_mem);
+
+    log_debug("Compiled expression: {}", this->_expr);
+    log_debug("Ready to be evaluated");
 
     return true;
 }

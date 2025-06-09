@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include <format>
+#include <unordered_set>
 
 template<>
 struct std::formatter<std::byte> {
@@ -32,7 +33,9 @@ MATHSEXPR_FORCE_INLINE constexpr std::byte BYTE(auto b) noexcept { return static
 
 using ByteCode = std::vector<std::byte>;
 
-void bytecode_as_hex_string(const ByteCode& bytecode, std::string& out) noexcept;
+void bytecode_as_hex_string(const ByteCode& bytecode,
+                            std::string& out,
+                            const std::unordered_set<std::byte>& prefixes) noexcept;
 
 MATHSEXPR_NAMESPACE_END
 

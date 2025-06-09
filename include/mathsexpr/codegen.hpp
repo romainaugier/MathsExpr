@@ -40,6 +40,26 @@ public:
     virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
 };
 
+class MATHSEXPR_API InstrPrologue : public Instr
+{
+    size_t _stack_size;
+
+public:
+    InstrPrologue(size_t stack_size) : _stack_size(stack_size) {}
+
+    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
+    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
+};
+
+class MATHSEXPR_API InstrEpilogue : public Instr
+{
+public:
+    InstrEpilogue() {}
+
+    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
+    virtual void as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept override;
+};
+
 /* Unary ops instructions */
 
 class MATHSEXPR_API InstrNeg : public Instr

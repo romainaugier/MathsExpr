@@ -18,16 +18,113 @@ MATHSEXPR_NAMESPACE_BEGIN
 
 void InstrMov::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
 {
-    switch(platform)
+    switch(isa)
     {
-        case Platform_Linux:
-        case Platform_Windows:
-            std::format_to(std::back_inserter(out), "movsd ");
-            this->_mem_loc_to->as_string(out, isa, platform);
-            std::format_to(std::back_inserter(out), ", ");
-            this->_mem_loc_from->as_string(out, isa, platform);
-            break;
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                    std::format_to(std::back_inserter(out), "movsd ");
+                    this->_mem_loc_to->as_string(out, isa, platform);
+                    std::format_to(std::back_inserter(out), ", ");
+                    this->_mem_loc_from->as_string(out, isa, platform);
+                    break;
+            }
+        }
     }
+}
+
+std::pair<std::byte, std::byte> get_x86_64_modrm_and_offset(MemLocPtr from, 
+                                                            MemLocPtr to,
+                                                            uint32_t isa,
+                                                            uint32_t platform) noexcept
+{
+    switch(from->type_id())
+    {
+        case MemLocTypeId_Register:
+        {
+            switch(to->type_id())
+            {
+                case MemLocTypeId_Register:
+                {
+                    const std::byte modrm = x86_64::MOD_DIRECT | 
+                                            to->as_reg_byte(isa, platform) |
+                                            from->as_rm_byte(isa, platform);
+
+                    return std::make_pair(modrm, BYTE(0));
+                }
+
+                case MemLocTypeId_Stack:
+                {
+                    auto stack = memloc_cast<Stack>(to.get());
+
+                    const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
+                                            from->as_reg_byte(isa, platform) |
+                                            to->as_rm_byte(isa, platform);
+
+                    return std::make_pair(modrm, BYTE(stack->get_signed_offset()));
+                }
+
+                case MemLocTypeId_Memory:
+                {
+                    auto memory = memloc_cast<Memory>(to.get());
+
+                    const std::byte mod = memory->get_offset() > 0 ? x86_64::MOD_INDIRECT_DISP8 : 
+                                                                     x86_64::MOD_INDIRECT;
+                    const std::byte modrm = mod |
+                                            from->as_reg_byte(isa, platform) |
+                                            to->as_rm_byte(isa, platform);
+
+                    return std::make_pair(modrm, BYTE(memory->get_offset()));
+                }
+            }
+
+            break;
+        }
+
+        case MemLocTypeId_Stack:
+        {
+            switch(to->type_id())
+            {
+                case MemLocTypeId_Register:
+                {
+                    auto stack = memloc_cast<Stack>(from.get());
+
+                    const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
+                                            to->as_reg_byte(isa, platform) |
+                                            from->as_rm_byte(isa, platform);
+
+                    return std::make_pair(modrm, BYTE(stack->get_signed_offset()));
+                }
+            }
+
+            break;
+        }
+
+        case MemLocTypeId_Memory:
+        {
+            switch(to->type_id())
+            {
+                case MemLocTypeId_Register:
+                {
+                    auto memory = memloc_cast<Memory>(from.get());
+
+                    const std::byte mod = memory->get_offset() > 0 ? x86_64::MOD_INDIRECT_DISP8 : 
+                                                                     x86_64::MOD_INDIRECT;
+                    const std::byte modrm = mod | 
+                                            to->as_reg_byte(isa, platform) |
+                                            from->as_rm_byte(isa, platform);
+
+                    return std::make_pair(modrm, BYTE(memory->get_offset()));
+                }
+            }
+
+            break;
+        }
+    }
+
 }
 
 void InstrMov::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
@@ -53,18 +150,129 @@ void InstrMov::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const
                         out.push_back(BYTE(0x11));
                     }
 
-                    std::byte reg_byte = this->_mem_loc_to->as_reg_byte(isa, platform);
-                    auto [rm_byte, offset] = this->_mem_loc_from->as_rm_off_byte(isa, platform);
-
-                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+                    auto [mod_reg_rm_byte, offset] = get_x86_64_modrm_and_offset(this->_mem_loc_from,
+                                                                                 this->_mem_loc_to,
+                                                                                 isa,
+                                                                                 platform);
 
                     out.push_back(mod_reg_rm_byte);
 
-                    if(offset > BYTE(0))
+                    if(offset > BYTE(0) || 
+                       (mod_reg_rm_byte & (x86_64::MOD_INDIRECT_DISP8 | x86_64::MOD_INDIRECT_DISP32)) > BYTE(0))
                     {
                         out.push_back(offset);
                     }
 
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
+}
+
+void InstrPrologue::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                    std::format_to(std::back_inserter(out), "push rbp\n");
+                    std::format_to(std::back_inserter(out), "mov rbp, rsp\n");
+                    std::format_to(std::back_inserter(out), "sub rsp, {}", this->_stack_size);
+                    break;
+            }
+        }
+    }
+}
+
+void InstrPrologue::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                {
+                    out.push_back(BYTE(0x55)); /* push rbp */
+
+                    out.push_back(BYTE(0x48)); /* mov rbp, rsp */
+                    out.push_back(BYTE(0x89));
+                    out.push_back(BYTE(0xE5));
+
+                    out.push_back(x86_64::REX_BASE | x86_64::REX_W); /* REX.W prefix */
+
+                    if(this->_stack_size > 127)
+                    {
+                        out.push_back(BYTE(0x81)); /* sub with single-byte immediate (imm32) */
+                    }
+                    else
+                    {
+                        out.push_back(BYTE(0x83)); /* sub with single-byte immediate (imm8) */
+                    }
+
+                    out.push_back(BYTE(0xEC)); /* rsp */
+
+                    if(this->_stack_size > 127)
+                    {
+                        const uint32_t stack_size = static_cast<uint32_t>(this->_stack_size);
+
+                        out.push_back(BYTE(stack_size & 0xFF));
+                        out.push_back(BYTE((stack_size >> 8) & 0xFF));
+                        out.push_back(BYTE((stack_size >> 16) & 0xFF));
+                        out.push_back(BYTE((stack_size >> 24) & 0xFF));
+                    }
+                    else
+                    {
+                        out.push_back(BYTE(this->_stack_size));
+                    }
+
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
+}
+
+void InstrEpilogue::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                    std::format_to(std::back_inserter(out), "leave");
+                    break;
+            }
+        }
+    }
+}
+
+void InstrEpilogue::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const noexcept 
+{
+    switch(isa)
+    {
+        case ISA_x86_64:
+        {
+            switch(platform)
+            {
+                case Platform_Linux:
+                case Platform_Windows:
+                {
+                    out.push_back(BYTE(0xC9));
                     break;
                 }
             }
@@ -107,10 +315,10 @@ void InstrAdd::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const
                     out.push_back(BYTE(0x0F));
                     out.push_back(BYTE(0x58));
 
-                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
-                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
-
-                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+                    auto [mod_reg_rm_byte, offset] = get_x86_64_modrm_and_offset(this->_right,
+                                                                                 this->_left,
+                                                                                 isa,
+                                                                                 platform);
 
                     out.push_back(mod_reg_rm_byte);
 
@@ -157,10 +365,10 @@ void InstrSub::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const
                     out.push_back(BYTE(0x0F));
                     out.push_back(BYTE(0x5C));
 
-                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
-                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
-
-                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+                    auto [mod_reg_rm_byte, offset] = get_x86_64_modrm_and_offset(this->_right,
+                                                                                 this->_left,
+                                                                                 isa,
+                                                                                 platform);
 
                     out.push_back(mod_reg_rm_byte);
 
@@ -207,10 +415,10 @@ void InstrMul::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const
                     out.push_back(BYTE(0x0F));
                     out.push_back(BYTE(0x59));
 
-                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
-                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
-
-                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+                    auto [mod_reg_rm_byte, offset] = get_x86_64_modrm_and_offset(this->_right,
+                                                                                 this->_left,
+                                                                                 isa,
+                                                                                 platform);
 
                     out.push_back(mod_reg_rm_byte);
 
@@ -257,10 +465,10 @@ void InstrDiv::as_bytecode(ByteCode& out, uint32_t isa, uint32_t platform) const
                     out.push_back(BYTE(0x0F));
                     out.push_back(BYTE(0x5E));
 
-                    std::byte reg_byte = this->_left->as_reg_byte(isa, platform);
-                    auto [rm_byte, offset] = this->_right->as_rm_off_byte(isa, platform);
-
-                    std::byte mod_reg_rm_byte = reg_byte | rm_byte;
+                    auto [mod_reg_rm_byte, offset] = get_x86_64_modrm_and_offset(this->_right,
+                                                                                 this->_left,
+                                                                                 isa,
+                                                                                 platform);
 
                     out.push_back(mod_reg_rm_byte);
 
@@ -344,21 +552,27 @@ bool CodeGenerator::build(const SSA& ssa,
 {
     this->_instructions.clear();
 
+    bool needs_epilogue = false;
+
     for(auto stmt : ssa.get_statements())
     {
         switch(stmt->type_id())
         {
             case SSAStmtTypeId_Variable:
             {
-                const SSAStmtVariable* variable = statement_const_cast<SSAStmtVariable>(stmt.get());
+                auto variable = statement_cast<SSAStmtVariable>(stmt.get());
 
-                MemLocPtr reg = regalloc.get_memloc(stmt);
-                MemLocPtr mem = std::make_shared<Memory>(MemLocRegister_Variables, 
-                                                         symtable.get_variable_offset(variable->get_name()));
+                MemLocPtr loc = regalloc.get_memloc(stmt);
 
-                InstrPtr mov = std::make_shared<InstrMov>(mem, reg);
+                if(loc->type_id() == MemLocTypeId_Register)
+                {
+                    MemLocPtr mem = std::make_shared<Memory>(MemLocRegister_Variables, 
+                                                            symtable.get_variable_offset(variable->get_name()));
 
-                this->_instructions.push_back(mov);
+                    InstrPtr mov = std::make_shared<InstrMov>(mem, loc);
+
+                    this->_instructions.push_back(mov);
+                }
 
                 break;
             }
@@ -456,6 +670,20 @@ bool CodeGenerator::build(const SSA& ssa,
             }
             case SSAStmtTypeId_AllocateStackOp:
             {
+                needs_epilogue = true;
+
+                auto allocstackop = statement_cast<SSAStmtAllocateStackOp>(stmt.get());
+
+                if(allocstackop == nullptr)
+                {
+                    log_error("Internal error during codegen: expected alloc stack op, got: {}",
+                              stmt->type_id());
+                }
+
+                InstrPtr alloc = std::make_shared<InstrPrologue>(allocstackop->get_stack_size());
+
+                this->_instructions.insert(this->_instructions.begin(), alloc);
+
                 break;
             }
             case SSAStmtTypeId_SpillOp:
@@ -500,6 +728,11 @@ bool CodeGenerator::build(const SSA& ssa,
             default:
                 break;
         }
+    }
+
+    if(needs_epilogue)
+    {
+        this->_instructions.push_back(std::make_shared<InstrEpilogue>());
     }
 
     this->_instructions.push_back(std::make_shared<InstrRet>());

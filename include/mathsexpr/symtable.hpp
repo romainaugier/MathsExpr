@@ -10,7 +10,7 @@
 #include "mathsexpr/ast.hpp"
 
 #include <string_view>
-#include <unordered_map>
+#include <map>
 #include <format>
 
 MATHSEXPR_NAMESPACE_BEGIN
@@ -70,11 +70,11 @@ public:
 
 class MATHSEXPR_API SymbolTable
 {
-    std::unordered_map<std::string_view, SymbolVariable> _variables;
+    std::map<std::string_view, SymbolVariable> _variables;
 
-    std::unordered_map<std::string_view, SymbolLiteral> _literals;
+    std::map<std::string_view, SymbolLiteral> _literals;
 
-    std::unordered_map<std::string_view, std::vector<const ASTNodeFunctionOp*>> _functions;
+    std::map<std::string_view, std::vector<const ASTNodeFunctionOp*>> _functions;
 
 public:
     SymbolTable() {}
@@ -91,9 +91,14 @@ public:
 
     size_t get_literal_offset(std::string_view literal_name) const noexcept;
 
-    const std::unordered_map<std::string_view, SymbolVariable>& get_variables() const noexcept
+    const std::map<std::string_view, SymbolVariable>& get_variables() const noexcept
     {
         return this->_variables;
+    }
+
+    const std::map<std::string_view, SymbolLiteral>& get_literals() const noexcept
+    {
+        return this->_literals;
     }
 };
 

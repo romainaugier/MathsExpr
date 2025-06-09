@@ -5,12 +5,14 @@
 #include "mathsexpr/log.hpp"
 #include "mathsexpr/expr.hpp"
 
+#include "utils.hpp"
+
 int main(int argc, char** argv)
 {
     mathsexpr::set_log_level(mathsexpr::LogLevel::Debug);
-    mathsexpr::log_info("Starting add test");
+    mathsexpr::log_info("Starting add_lit test");
 
-    const char* expression = "a + b";
+    const char* expression = "a + 4.0";
 
     mathsexpr::Expr expr(expression);
 
@@ -21,9 +23,8 @@ int main(int argc, char** argv)
     }
 
     double a = 4.0;
-    double b = 18.0;
 
-    auto [success, res] = expr.evaluate(a, b);
+    auto [success, res] = expr.evaluate(a);
 
     if(!success)
     {
@@ -31,13 +32,17 @@ int main(int argc, char** argv)
         return false;
     }
 
-    mathsexpr::log_info("expr \"{}\" evaluated: ({}, {}) = {}", 
+    mathsexpr::log_info("expr \"{}\" evaluated: ({}) = {}", 
                         expression,
                         a,
-                        b,
                         res);
 
-    mathsexpr::log_info("Finished Expr test");
+    if(!DOUBLE_EQ(8.0, res))
+    {
+        return 1;
+    }
+
+    mathsexpr::log_info("Finished add_lit test");
 
     return 0;
 }

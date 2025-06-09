@@ -261,6 +261,8 @@ public:
     static constexpr int static_type_id() { return 6; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
+
+    uint64_t get_stack_size() const noexcept { return this->_size; }
 };
 
 class MATHSEXPR_API SSAStmtSpillOp : public SSAStmt
