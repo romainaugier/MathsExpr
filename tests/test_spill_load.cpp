@@ -15,6 +15,8 @@ int main(int argc, char** argv)
     const char* expression = "(d / f) / ((c - e) / ((b / f) / ((a / b) - (((a - ((b - e) / ((c / e) / (a - f)))) / ((d - e) - (f - (a / b)))) - "
                              "((c - (d / f)) / (((e / b) - (f / a)) / (b - (c - d))))) / (c - d))))";
 
+    // const char* expression = "(d / f) / (c - e) / b * a";
+
     mathsexpr::Expr expr(expression);
 
     if(!expr.compile(mathsexpr::ExprPrintFlags_PrintAll))

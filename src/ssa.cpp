@@ -120,6 +120,8 @@ void SSA::print() const noexcept
     {
         stmt->print(out);
     }
+
+    std::format_to(out, "\n");
 }
 
 uint64_t SSAStmtVariable::canonicalize() const noexcept

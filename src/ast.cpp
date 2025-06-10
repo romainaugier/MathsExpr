@@ -69,6 +69,7 @@ void AST::print() const noexcept
     {
         std::format_to(out, "AST\n");
         this->_root->print(out, 0);
+        std::format_to(out, "\n");
     }
 }
 

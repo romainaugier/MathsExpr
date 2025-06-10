@@ -8,7 +8,6 @@
 #define __MATHSEXPR_REGALLOC
 
 #include "mathsexpr/ssa.hpp"
-#include "mathsexpr/bytecode_x86_64.hpp"
 #include "mathsexpr/symtable.hpp"
 
 #include <unordered_map>
@@ -37,17 +36,9 @@ public:
     virtual void print() const noexcept = 0;
 
     virtual int type_id() const noexcept = 0;
-
-    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept = 0;
-
-    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept = 0;
-
-    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept = 0;
 };
 
 using MemLocPtr = std::shared_ptr<MemLoc>;
-
-static constexpr uint64_t INVALID_REGISTER = std::numeric_limits<uint64_t>::max();
 
 class MATHSEXPR_API MemLocInvalid : public MemLoc
 {
@@ -57,20 +48,14 @@ public:
     static constexpr int static_type_id() noexcept { return MemLocTypeId_Invalid; }
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
-
-    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
 };
 
 class MATHSEXPR_API Register : public MemLoc
 {
-    uint64_t _id;
+    uint32_t _id;
 
 public:
-    Register(uint64_t id) : _id(id) {}
+    Register(uint32_t id) : _id(id) {}
 
     virtual void print() const noexcept override {}
 
@@ -78,13 +63,7 @@ public:
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
-    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
-
-    uint64_t get_id() const noexcept { return this->_id; }
+    RegisterId get_id() const noexcept { return this->_id; }
 };
 
 class MATHSEXPR_API Stack : public MemLoc 
@@ -100,12 +79,6 @@ public:
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
-    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
-
     uint64_t get_offset() const noexcept { return this->_offset; }
 
     int64_t get_signed_offset() const noexcept { return -static_cast<int64_t>(this->_offset); }
@@ -113,7 +86,7 @@ public:
 
 class MATHSEXPR_API Memory : public MemLoc
 {
-    uint64_t _base_ptr; /* GP Register where the base ptr is located */
+    uint64_t _base_ptr; /* MemLocRegister value where the base ptr is located */
     uint64_t _offset;
 
 public:
@@ -125,11 +98,7 @@ public:
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
-    virtual void as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_reg_byte(uint32_t isa, uint32_t platform) const noexcept override;
-
-    virtual std::byte as_rm_byte(uint32_t isa, uint32_t platform) const noexcept override;
+    uint64_t get_mem_loc_register() const noexcept { return this->_base_ptr; }
 
     uint64_t get_offset() const noexcept { return this->_offset; }
 };
@@ -165,15 +134,6 @@ class MATHSEXPR_API RegisterAllocator
 
     uint64_t _max_registers;
 
-    static uint64_t get_max_available_registers(uint32_t platform, 
-                                                uint32_t isa) noexcept;
-
-    static uint32_t get_fp_call_return_value_register(uint32_t platform,
-                                                      uint32_t isa) noexcept;
-
-    static uint64_t get_fp_call_max_args_register(uint32_t platform,
-                                                  uint32_t isa) noexcept;
-
     static bool prepass_commutative_operand_swap(SSA& ssa) noexcept;
 
     const MemLocPtr get_reusable_register(const SSAStmtPtr& statement) const noexcept;
@@ -182,8 +142,7 @@ public:
     RegisterAllocator(uint32_t platform, 
                       uint32_t isa) : _platform(platform),
                                       _isa(isa),
-                                      _max_registers(RegisterAllocator::get_max_available_registers(platform, 
-                                                                                                    isa))
+                                      _max_registers(get_max_available_fp_registers(platform, isa))
                                  {}
 
     bool allocate(SSA& ssa, const SymbolTable& symtable) noexcept;

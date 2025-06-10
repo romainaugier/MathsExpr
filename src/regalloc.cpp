@@ -11,175 +11,7 @@
 #include <cstring>
 #include <unordered_set>
 
-/*
-    https://www.thejat.in/learn/system-v-amd64-calling-convention
-    https://learn.microsoft.com/en-us/cpp/build/x64-software-conventions?view=msvc-170#x64-register-usage
-*/
-
 MATHSEXPR_NAMESPACE_BEGIN
-
-void MemLocInvalid::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
-{
-    std::format_to(std::back_inserter(out), "inv");
-}
-
-std::byte MemLocInvalid::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    return BYTE(0);
-}
-
-std::byte MemLocInvalid::as_rm_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    return BYTE(0);
-}
-
-void Register::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
-{
-    switch(isa)
-    {
-        case ISA_x86_64:
-        {
-            switch(platform)
-            {
-                case Platform_Windows:
-                case Platform_Linux:
-                    std::format_to(std::back_inserter(out), "xmm{}", this->_id);
-                    break;
-            }
-
-            break;
-        }
-    }
-}
-
-std::byte Register::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    switch(isa)
-    {
-        case ISA_x86_64:
-        {
-            const std::byte reg = x86_64::encode_platform_fp_register(this->_id);
-            return reg << 3;
-        }
-    }
-
-    return BYTE(0);
-}
-
-std::byte Register::as_rm_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    switch(isa)
-    {
-        case ISA_x86_64:
-        {
-            const std::byte reg = x86_64::encode_platform_fp_register(this->_id);
-            return reg;
-        }
-    }
-
-    return BYTE(0);
-}
-
-void Stack::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
-{
-    switch(isa)
-    {
-        case ISA_x86_64:
-        {
-            switch(platform)
-            {
-                case Platform_Windows:
-                case Platform_Linux:
-                    std::format_to(std::back_inserter(out), "[rbp - {}]", this->_offset);
-                    break;
-            }
-
-            break;
-        }
-    }
-}
-
-std::byte Stack::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    return BYTE(0);
-}
-
-std::byte Stack::as_rm_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    switch(isa)
-    {
-        case ISA_x86_64:
-        {
-            return x86_64::RBP;
-        }
-    }
-
-    return BYTE(0);
-}
-
-void Memory::as_string(std::string& out, uint32_t isa, uint32_t platform) const noexcept
-{
-    switch(isa)
-    {
-        case ISA_x86_64:
-        {
-            switch(platform)
-            {
-                case Platform_Windows:
-                case Platform_Linux:
-                {
-                    if(this->_base_ptr == MemLocRegister_Variables)
-                    {
-                        std::format_to(std::back_inserter(out),
-                                       "[{} + {}]", 
-                                       gp_register_x86_64_as_string(get_base_ptr_variable_register(platform, isa)),
-                                       this->_offset);
-                    }
-                    else if(this->_base_ptr == MemLocRegister_Literals)
-                    {
-                        std::format_to(std::back_inserter(out),
-                                       "[{} + {}]", 
-                                       gp_register_x86_64_as_string(get_base_ptr_literal_register(platform, isa)),
-                                       this->_offset);
-                    }
-
-                    break;
-                }
-            }
-
-            break;
-        }
-    }
-}
-
-std::byte Memory::as_reg_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    return BYTE(0);
-}
-
-std::byte Memory::as_rm_byte(uint32_t isa, uint32_t platform) const noexcept
-{
-    switch(isa)
-    {
-        case ISA_x86_64:
-        {
-            if(this->_base_ptr == MemLocRegister_Variables)
-            {
-                const std::byte reg = x86_64::encode_platform_gp_register(get_base_ptr_variable_register(platform, isa));
-
-                return reg;
-            }
-            else if(this->_base_ptr == MemLocRegister_Literals)
-            {
-                const std::byte reg = x86_64::encode_platform_gp_register(get_base_ptr_literal_register(platform, isa));
-
-                return reg;
-            }
-        }
-    }
-
-    return BYTE(0);
-}
 
 /* Register allocation on SSA */
 
@@ -364,104 +196,6 @@ const MemLocPtr RegisterAllocator::get_reusable_register(const SSAStmtPtr& state
     }
 }
 
-uint64_t RegisterAllocator::get_max_available_registers(uint32_t platform, uint32_t isa) noexcept
-{
-    switch(platform)
-    {
-        case Platform_Windows:
-        {
-            switch(isa)
-            {
-                case ISA_x86_64:
-                    return 5;
-                default:
-                    log_error("Unsupported ISA: {}", isa_as_string(isa));
-                    return 5;
-            }
-        }
-        case Platform_Linux:
-        {
-            switch(isa)
-            {
-                case ISA_x86_64:
-                    return 8;
-                default:
-                    log_error("Unsupported ISA: {}", isa_as_string(isa));
-                    return 8;
-            }
-        }
-        default:
-            log_error("Unsupported platform: {}", platform_as_string(platform));
-            return 0;
-    }
-}
-
-uint32_t RegisterAllocator::get_fp_call_return_value_register(uint32_t platform, uint32_t isa) noexcept
-{
-    switch(platform)
-    {
-        case Platform_Windows:
-        {
-            switch(isa)
-            {
-                case ISA_x86_64:
-                    return FpRegisters_x86_64_Xmm0;
-                default:
-                    log_error("Unsupported ISA: {}", isa_as_string(isa));
-                    return INVALID_FP_REGISTER;
-            }
-        }
-        case Platform_Linux:
-        {
-            switch(isa)
-            {
-                case ISA_x86_64:
-                    return FpRegisters_x86_64_Xmm0;
-                default:
-                    log_error("Unsupported ISA: {}", isa_as_string(isa));
-                    return INVALID_FP_REGISTER;
-            }
-        }
-
-        default:
-            log_error("Unsupported platform: {}", platform_as_string(platform));
-            return INVALID_FP_REGISTER;
-    }
-}
-
-uint64_t RegisterAllocator::get_fp_call_max_args_register(uint32_t platform, uint32_t isa) noexcept
-{
-    switch(platform)
-    {
-        case Platform_Windows:
-        {
-            switch(isa)
-            {
-                case ISA_x86_64:
-                    return 4;
-                default:
-                    log_error("Unsupported ISA: {}", isa_as_string(isa));
-                    return 0;
-            }
-        }
-        case Platform_Linux:
-        {
-            switch(isa)
-            {
-                case ISA_x86_64:
-                    return 8;
-                default:
-                    log_error("Unsupported ISA: {}", isa_as_string(isa));
-                    return 0;
-            }
-        }
-
-        default:
-            log_error("Unsupported platform: {}", platform_as_string(platform));
-            return 0;
-    }
-}
-
 /* Optimization passes for better register allocation */
 
 /*
@@ -521,7 +255,6 @@ bool RegisterAllocator::prepass_commutative_operand_swap(SSA& ssa) noexcept
 
 /* Register allocation */
 
-using RegisterId = uint64_t;
 using StackOffset = uint64_t;
 using Active = std::pair<SSAStmtPtr, RegisterId>;
 
@@ -562,6 +295,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
         log_debug("Register allocation: pass {}", num_passes);
 
+        needed_stack_size = 0;
         this->_mapping.clear();
 
         if(!ssa.calculate_live_ranges())
@@ -586,7 +320,8 @@ bool RegisterAllocator::allocate(SSA& ssa,
         
         */
 
-        RegisterId rv_reg = get_fp_call_return_value_register(this->_platform, this->_isa);
+        /* We only deal with fp values (double or float) so we only care about this rv */
+        RegisterId rv_reg = get_call_return_value_fp_register(this->_platform, this->_isa);
 
         SSAStmtPtr& last_stmt = statements.back();
 
@@ -711,8 +446,8 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
                 case SSAStmtTypeId_FuncOp:
                 {
-                    RegisterId return_value_register = RegisterAllocator::get_fp_call_return_value_register(this->_platform, 
-                                                                                                            this->_isa);
+                    RegisterId return_value_register = get_call_return_value_fp_register(this->_platform, 
+                                                                                         this->_isa);
 
                     if(return_value_register == INVALID_FP_REGISTER)
                     {
@@ -732,16 +467,19 @@ bool RegisterAllocator::allocate(SSA& ssa,
                         return false;
                     }
 
-                    if(funcop->get_arguments().size() > RegisterAllocator::get_fp_call_max_args_register(this->_platform,
-                                                                                                         this->_isa))
+                    if(funcop->get_arguments().size() > get_call_max_args_fp_registers(this->_platform,
+                                                                                       this->_isa))
                     {
                         return false;
                     }
 
+                    auto& args_registers = get_call_args_fp_registers(this->_platform,
+                                                                      this->_isa);
+
                     for(auto [i, argument] : std::ranges::enumerate_view(funcop->get_arguments()))
                     {
-                        this->_mapping[argument] = std::make_shared<Register>(i);
-                        actives.emplace_back(argument, i);
+                        this->_mapping[argument] = std::make_shared<Register>(args_registers[i]);
+                        actives.emplace_back(argument, args_registers[i]);
                     }
 
                     break;
@@ -858,6 +596,8 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
                 this->_mapping[stmt] = std::make_shared<Stack>(stack_offset + 8);
                 stack_offset += 8;
+
+                needed_stack_size = std::max(needed_stack_size, stack_offset);
 
                 auto remove_result = std::remove_if(actives.begin(), 
                                                     actives.end(), 
@@ -1056,8 +796,6 @@ bool RegisterAllocator::allocate(SSA& ssa,
         }
 
         ssa.get_statements() = std::move(new_statements);
-
-        needed_stack_size = stack_offset;
     }
 
     log_debug("Allocated registers in {} pass{} (max pressure: {})", 

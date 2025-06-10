@@ -38,6 +38,8 @@ void SymbolTable::print() const noexcept
     {
         std::format_to(out, "    - {} ({} calls)\n", name, nodes.size());
     }
+
+    std::format_to(out, "\n");
 }
 
 void SymbolTable::clear() noexcept

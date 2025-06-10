@@ -25,7 +25,7 @@ enum LogLevel : std::uint32_t
     Debug,
 };
 
-class Logger
+class MATHSEXPR_API Logger
 {
     LogLevel _level;
 
@@ -33,7 +33,7 @@ class Logger
     ~Logger() {}
 
 public:
-    static Logger& get_instance() { static Logger l; return l; }
+    static Logger& get_instance();
 
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
@@ -51,6 +51,7 @@ public:
         static std::ostream_iterator<char> out(std::cout);
 
         std::format_to(out, "[{}] {}\n", level, std::vformat(format.get(), std::make_format_args(args...)));
+        std::cout.flush();
     }
 };
 

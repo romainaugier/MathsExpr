@@ -10,6 +10,7 @@
 #include "mathsexpr/mathsexpr.hpp"
 
 #include <limits>
+#include <vector>
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -17,6 +18,7 @@ enum Platform : uint32_t
 {
     Platform_Windows,
     Platform_Linux,
+    Platform_MacOS,
     Platform_Invalid,
 };
 
@@ -27,6 +29,7 @@ MATHSEXPR_API const char* platform_as_string(uint32_t platform) noexcept;
 enum ISA : uint32_t
 {
     ISA_x86_64,
+    ISA_aarch64,
     ISA_Invalid,
 };
 
@@ -34,10 +37,15 @@ MATHSEXPR_API uint32_t get_current_isa() noexcept;
 
 MATHSEXPR_API const char* isa_as_string(uint32_t isa) noexcept;
 
-static constexpr uint32_t INVALID_GP_REGISTER = std::numeric_limits<uint32_t>::max();
+using RegisterId = uint32_t;
+
+static constexpr RegisterId INVALID_GP_REGISTER = std::numeric_limits<RegisterId>::max();
+static constexpr RegisterId INVALID_FP_REGISTER = std::numeric_limits<RegisterId>::max();
+
+/* x86_64 registers */
 
 /* General Purpose Registers */
-enum GpRegisters_x86_64 : uint32_t
+enum GpRegisters_x86_64 : RegisterId
 {
     GpRegisters_x86_64_RAX,
     GpRegisters_x86_64_RBX,
@@ -57,12 +65,8 @@ enum GpRegisters_x86_64 : uint32_t
     GpRegisters_x86_64_R15,
 };
 
-MATHSEXPR_API const char* gp_register_x86_64_as_string(uint32_t reg) noexcept;
-
-static constexpr uint32_t INVALID_FP_REGISTER = std::numeric_limits<uint32_t>::max();
-
-/* Floating Point Registers (omitting the upper 8-15 since not supported on abis) */
-enum FpRegisters_x86_64 : uint32_t
+/* Floating Point Registers (omitting the upper 8-15, not available on windows abi) */
+enum FpRegisters_x86_64 : RegisterId
 {
     FpRegisters_x86_64_Xmm0,
     FpRegisters_x86_64_Xmm1,
@@ -72,13 +76,58 @@ enum FpRegisters_x86_64 : uint32_t
     FpRegisters_x86_64_Xmm5,
     FpRegisters_x86_64_Xmm6,
     FpRegisters_x86_64_Xmm7,
+    FpRegisters_x86_64_Ymm0,
+    FpRegisters_x86_64_Ymm1,
+    FpRegisters_x86_64_Ymm2,
+    FpRegisters_x86_64_Ymm3,
+    FpRegisters_x86_64_Ymm4,
+    FpRegisters_x86_64_Ymm5,
+    FpRegisters_x86_64_Ymm6,
+    FpRegisters_x86_64_Ymm7,
 };
 
+/* aarch64 registers */
+
+enum GpRegisters_aarch64 : RegisterId
+{
+
+};
+
+enum FpRegisters_aarch64 : RegisterId
+{
+
+};
+
+/* registers as string, convenient for pretty printing */
+MATHSEXPR_API const char* gp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
+MATHSEXPR_API const char* fp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
+
 /* base ptr for the variables values is passed as the first parameter */
-MATHSEXPR_API uint32_t get_base_ptr_variable_register(uint32_t platform, uint32_t isa) noexcept;
+MATHSEXPR_API RegisterId get_base_ptr_variable_register(uint32_t platform, uint32_t isa) noexcept;
 
 /* base ptr for the variables values is passed as the second parameter */
-MATHSEXPR_API uint32_t get_base_ptr_literal_register(uint32_t platform, uint32_t isa) noexcept;
+MATHSEXPR_API RegisterId get_base_ptr_literal_register(uint32_t platform, uint32_t isa) noexcept;
+
+/* 
+    Returns the maximum number of registers that can be used simultaneously, used by 
+    the register allocator to know how many registers we can use
+*/
+MATHSEXPR_API uint64_t get_max_available_gp_registers(uint32_t platform, uint32_t isa) noexcept;
+MATHSEXPR_API uint64_t get_max_available_fp_registers(uint32_t platform, uint32_t isa) noexcept;
+
+/* Returns the register id of the register used to store the return value of a function call */
+MATHSEXPR_API RegisterId get_call_return_value_gp_register(uint32_t platform, uint32_t isa) noexcept;
+MATHSEXPR_API RegisterId get_call_return_value_fp_register(uint32_t platform, uint32_t isa) noexcept;
+
+/* Returns the number of registers we can use to store arguments for a function call */
+MATHSEXPR_API uint64_t get_call_max_args_gp_registers(uint32_t platform, uint32_t isa) noexcept;
+MATHSEXPR_API uint64_t get_call_max_args_fp_registers(uint32_t platform, uint32_t isa) noexcept;
+
+/* Returns the register order for arguments placement before a function call */
+MATHSEXPR_API const std::vector<RegisterId>& get_call_args_gp_registers(uint32_t platform, 
+                                                                        uint32_t isa) noexcept;
+MATHSEXPR_API const std::vector<RegisterId>& get_call_args_fp_registers(uint32_t platform, 
+                                                                        uint32_t isa) noexcept;
 
 MATHSEXPR_NAMESPACE_END
 

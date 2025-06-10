@@ -118,7 +118,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         ssa.print();
     }
 
-    CodeGenerator generator;
+    CodeGenerator generator(isa, platform);
 
     if(!generator.build(ssa, reg_allocator, symtable))
     {
@@ -129,10 +129,20 @@ bool Expr::compile(uint64_t debug_flags) noexcept
 
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorAsString)
     {
-        generator.print(isa, platform);
+        auto [gen_str_success, code] = generator.as_string();
+
+        if(!gen_str_success)
+        {
+            log_error("Error during code generation for expression: {}", this->_expr);
+            log_error("Check the log for more information");
+
+            return false;
+        }
+
+        std::cout << "CODEGEN\n" << code << "\n";
     }
 
-    auto [gen_success, bytecode] = generator.as_bytecode(isa, platform);
+    auto [gen_success, bytecode] = generator.as_bytecode();
 
     if(!gen_success)
     {
@@ -143,13 +153,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
 
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorByteCodeAsHexCode)
     {
-        std::string hexcode;
-
-        switch(isa)
-        {
-            case ISA_x86_64:
-                bytecode_as_hex_string(bytecode, hexcode, x86_64::prefixes);
-        }
+        auto [hex_success, hexcode] = generator.as_bytecode_hex_string();
 
         std::cout << "BYTECODE" << "\n" << hexcode << "\n";
     }

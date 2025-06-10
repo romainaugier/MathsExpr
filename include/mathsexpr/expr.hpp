@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <set>
 #include <vector>
+#include <array>
 
 MATHSEXPR_NAMESPACE_BEGIN
 
@@ -62,7 +63,7 @@ public:
             return std::make_tuple(false, 0.0);
         }
 
-        std::array<double, sizeof...(Args)> values;
+        alignas(16) std::array<double, sizeof...(Args)> values;
 
         [&]<std::size_t... Is>(std::index_sequence<Is...>) {
                 ((values[Is] = static_cast<double>(args)), ...);
