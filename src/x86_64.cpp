@@ -118,11 +118,14 @@ void memloc_as_string(std::string& out,
 
         case MemLocTypeId_Stack:
         {
+            RegisterId stack_register = platform == Platform_Linux ? GpRegisters_x86_64_RBP : 
+                                                                     GpRegisters_x86_64_RSP;
+
             auto stack = memloc_const_cast<Stack>(memloc.get());
 
             std::format_to(std::back_inserter(out), 
                            "[{} - {}]",
-                           gp_register_as_string(GpRegisters_x86_64_RBP, ISA_x86_64),
+                           gp_register_as_string(stack_register, ISA_x86_64),
                            stack->get_offset());
 
             break;
@@ -177,7 +180,10 @@ std::byte memloc_as_m_byte(const MemLocPtr& memloc,
 
         case MemLocTypeId_Stack:
         {
-            return RBP;
+            std::byte stack_register = platform == Platform_Linux ? RBP : 
+                                                                    RSP ;
+
+            return stack_register;
         }
 
         case MemLocTypeId_Memory:
