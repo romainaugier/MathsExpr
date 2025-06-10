@@ -806,7 +806,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
     if(needed_stack_size > 0)
     {
         /* Stack needs to be aligned to 16 for sse */
-        needed_stack_size = (needed_stack_size + 15) & ~15;
+        needed_stack_size = ((needed_stack_size + 15) & ~15);
 
         log_debug("Adding stackalloc op (needed space: {})", needed_stack_size);
 

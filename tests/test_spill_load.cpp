@@ -12,10 +12,10 @@ int main(int argc, char** argv)
     mathsexpr::set_log_level(mathsexpr::LogLevel::Debug);
     mathsexpr::log_info("Starting spill/load test");
 
-    const char* expression = "(d / f) / ((c - e) / ((b / f) / ((a / b) - (((a - ((b - e) / ((c / e) / (a - f)))) / ((d - e) - (f - (a / b)))) - "
-                             "((c - (d / f)) / (((e / b) - (f / a)) / (b - (c - d))))) / (c - d))))";
+    // const char* expression = "(d / f) / ((c - e) / ((b / f) / ((a / b) - (((a - ((b - e) / ((c / e) / (a - f)))) / ((d - e) - (f - (a / b)))) - "
+    //                          "((c - (d / f)) / (((e / b) - (f / a)) / (b - (c - d))))) / (c - d))))";
 
-    // const char* expression = "(d / f) / (c - e) / b * a";
+    const char* expression = "(d / f) / (c - e) / b * a";
 
     mathsexpr::Expr expr(expression);
 

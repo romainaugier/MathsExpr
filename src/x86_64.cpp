@@ -211,25 +211,18 @@ std::byte memloc_as_m_byte(const MemLocPtr& memloc,
     }
 }
 
-std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr to, 
-                                                           MemLocPtr from,
+std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr from, 
+                                                           MemLocPtr to,
                                                            uint32_t platform) noexcept
 {
     switch(from->type_id())
     {
         case MemLocTypeId_Register:
         {
-            auto from_register = memloc_const_cast<Register>(from.get());
-            const std::byte from_reg_byte = encode_platform_gp_register(from_register->get_id());
-
             switch(to->type_id())
             {
                 case MemLocTypeId_Register:
                 {
-                    auto to_register = memloc_const_cast<Register>(to.get());
-
-                    const std::byte to_reg = encode_platform_gp_register(to_register->get_id()) << 3;
-
                     const std::byte modrm = x86_64::MOD_DIRECT | 
                                             memloc_as_r_byte(to) |
                                             memloc_as_m_byte(from, platform);
@@ -338,8 +331,8 @@ void InstrMov::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
         out.push_back(BYTE(0x11));
     }
 
-    auto [mod_rm_byte, offset] = memloc_as_modrm_and_offset(this->_mem_loc_to,
-                                                            this->_mem_loc_from,
+    auto [mod_rm_byte, offset] = memloc_as_modrm_and_offset(this->_mem_loc_from,
+                                                            this->_mem_loc_to,
                                                             platform);
 
     out.push_back(mod_rm_byte);
@@ -391,10 +384,11 @@ void InstrPrologue::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
 
             out.push_back(BYTE(0xEC)); /* rsp */
 
+            /* push rbp adds 8 bytes to rsp and misaligns the stack (we need it to be 16 bytes aligned) */
+            const uint32_t stack_size = static_cast<uint32_t>(this->_stack_size) + 8;
+
             if(this->_stack_size > 127)
             {
-                const uint32_t stack_size = static_cast<uint32_t>(this->_stack_size);
-
                 out.push_back(BYTE(stack_size & 0xFF));
                 out.push_back(BYTE((stack_size >> 8) & 0xFF));
                 out.push_back(BYTE((stack_size >> 16) & 0xFF));
@@ -402,7 +396,7 @@ void InstrPrologue::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
             }
             else
             {
-                out.push_back(BYTE(this->_stack_size));
+                out.push_back(BYTE(stack_size));
             }
 
             break;
