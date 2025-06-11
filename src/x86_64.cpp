@@ -118,15 +118,36 @@ void memloc_as_string(std::string& out,
 
         case MemLocTypeId_Stack:
         {
-            RegisterId stack_register = platform == Platform_Linux ? GpRegisters_x86_64_RBP : 
-                                                                     GpRegisters_x86_64_RSP;
+            switch(platform)
+            {
+                case Platform_Linux:
+                {
+                    RegisterId stack_register = GpRegisters_x86_64_RBP;
 
-            auto stack = memloc_const_cast<Stack>(memloc.get());
+                    auto stack = memloc_const_cast<Stack>(memloc.get());
 
-            std::format_to(std::back_inserter(out), 
-                           "[{} - {}]",
-                           gp_register_as_string(stack_register, ISA_x86_64),
-                           stack->get_offset());
+                    std::format_to(std::back_inserter(out), 
+                                "[{} - {}]",
+                                gp_register_as_string(stack_register, ISA_x86_64),
+                                stack->get_offset());
+
+                    break;
+                }
+
+                case Platform_Windows:
+                {
+                    RegisterId stack_register = GpRegisters_x86_64_RSP;
+
+                    auto stack = memloc_const_cast<Stack>(memloc.get());
+
+                    std::format_to(std::back_inserter(out), 
+                                "[{} + {}]",
+                                gp_register_as_string(stack_register, ISA_x86_64),
+                                stack->get_offset() - 8);
+
+                    break;
+                }
+            }
 
             break;
         }
@@ -211,9 +232,16 @@ std::byte memloc_as_m_byte(const MemLocPtr& memloc,
     }
 }
 
-std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr from, 
-                                                           MemLocPtr to,
-                                                           uint32_t platform) noexcept
+std::byte encode_sib(uint8_t scale, uint8_t index, uint8_t base) noexcept
+{
+    return BYTE(((scale & 0x3) << 6) | ((index & 0x7) << 3) | (base & 0x7));
+}
+
+using ModRmSibOffset = std::tuple<std::byte, std::optional<std::byte>, std::byte>;
+
+ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from, 
+                                          MemLocPtr to,
+                                          uint32_t platform) noexcept
 {
     switch(from->type_id())
     {
@@ -227,18 +255,29 @@ std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr from,
                                             memloc_as_r_byte(to) |
                                             memloc_as_m_byte(from, platform);
 
-                    return std::make_pair(modrm, BYTE(0));
+                    return std::make_tuple(modrm, std::nullopt, BYTE(0));
                 }
 
                 case MemLocTypeId_Stack:
                 {
                     auto stack = memloc_cast<Stack>(to.get());
 
+                    const std::byte m_byte = memloc_as_m_byte(to, platform);
+
                     const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
                                             memloc_as_r_byte(from) |
-                                            memloc_as_m_byte(to, platform);
+                                            m_byte;
 
-                    return std::make_pair(modrm, BYTE(stack->get_signed_offset()));
+                    /* We need to add the sib byte when using RSP as the base register */
+                    if(m_byte == RSP)
+                    {
+                        /* scale=1, index=none (100), base=RSP (100) = 0x24 */
+                        const std::byte sib = encode_sib(0, 4, 4);
+
+                        return std::make_tuple(modrm, sib, BYTE(stack->get_offset() - 8));
+                    }
+
+                    return std::make_tuple(modrm, std::nullopt, BYTE(stack->get_signed_offset()));
                 }
 
                 case MemLocTypeId_Memory:
@@ -251,7 +290,7 @@ std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr from,
                                             memloc_as_r_byte(from) |
                                             memloc_as_m_byte(to, platform);
 
-                    return std::make_pair(modrm, BYTE(memory->get_offset()));
+                    return std::make_tuple(modrm, std::nullopt, BYTE(memory->get_offset()));
                 }
             }
 
@@ -266,11 +305,22 @@ std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr from,
                 {
                     auto stack = memloc_cast<Stack>(from.get());
 
+                    const std::byte m_byte = memloc_as_m_byte(from, platform);
+
                     const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
                                             memloc_as_r_byte(to) |
-                                            memloc_as_m_byte(from, platform);
+                                            m_byte;
 
-                    return std::make_pair(modrm, BYTE(stack->get_signed_offset()));
+                    /* We need to add the sib byte when using RSP as the base register */
+                    if(m_byte == RSP)
+                    {
+                        /* scale=1, index=none (100), base=RSP (100) = 0x24 */
+                        const std::byte sib = encode_sib(0, 4, 4);
+
+                        return std::make_tuple(modrm, sib, BYTE(stack->get_offset() - 8));
+                    }
+
+                    return std::make_tuple(modrm, std::nullopt, BYTE(stack->get_signed_offset()));
                 }
             }
 
@@ -291,7 +341,7 @@ std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr from,
                                             memloc_as_r_byte(to) |
                                             memloc_as_m_byte(from, platform);
 
-                    return std::make_pair(modrm, BYTE(memory->get_offset()));
+                    return std::make_tuple(modrm, std::nullopt, BYTE(memory->get_offset()));
                 }
             }
 
@@ -299,12 +349,14 @@ std::pair<std::byte, std::byte> memloc_as_modrm_and_offset(MemLocPtr from,
         }
     }
 
-    return std::make_pair(BYTE(0), BYTE(0));
+    return std::make_tuple(BYTE(0), std::nullopt, BYTE(0));
 }
 
 bool modrm_has_displace(const std::byte modrm_byte) noexcept
 {
-    return (modrm_byte & (x86_64::MOD_INDIRECT_DISP8 | x86_64::MOD_INDIRECT_DISP32)) > BYTE(0);
+    const std::byte mod = modrm_byte >> 6;
+
+    return mod == x86_64::MOD_INDIRECT_DISP8 || mod == x86_64::MOD_INDIRECT_DISP32;
 }
 
 /* Memory instructions */
@@ -331,11 +383,16 @@ void InstrMov::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
         out.push_back(BYTE(0x11));
     }
 
-    auto [mod_rm_byte, offset] = memloc_as_modrm_and_offset(this->_mem_loc_from,
-                                                            this->_mem_loc_to,
-                                                            platform);
+    auto [mod_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_mem_loc_from,
+                                                                 this->_mem_loc_to,
+                                                                 platform);
 
     out.push_back(mod_rm_byte);
+
+    if(sib.has_value())
+    {
+        out.push_back(sib.value());
+    }
 
     if(offset > BYTE(0) || modrm_has_displace(mod_rm_byte))
     {
@@ -483,11 +540,16 @@ void InstrAdd::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x58));
 
-    auto [mod_reg_rm_byte, offset] = memloc_as_modrm_and_offset(this->_right,
-                                                                this->_left,
-                                                                platform);
+    auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
+                                                                     this->_left,
+                                                                     platform);
 
     out.push_back(mod_reg_rm_byte);
+
+    if(sib.has_value())
+    {
+        out.push_back(sib.value());
+    }
 
     if(offset > BYTE(0) || modrm_has_displace(mod_reg_rm_byte))
     {
@@ -509,11 +571,16 @@ void InstrSub::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x5C));
 
-    auto [mod_reg_rm_byte, offset] = memloc_as_modrm_and_offset(this->_right,
-                                                                this->_left,
-                                                                platform);
+    auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
+                                                                     this->_left,
+                                                                     platform);
 
     out.push_back(mod_reg_rm_byte);
+
+    if(sib.has_value())
+    {
+        out.push_back(sib.value());
+    }
 
     if(offset > BYTE(0) || modrm_has_displace(mod_reg_rm_byte))
     {
@@ -535,11 +602,16 @@ void InstrMul::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x59));
 
-    auto [mod_reg_rm_byte, offset] = memloc_as_modrm_and_offset(this->_right,
-                                                                this->_left,
-                                                                platform);
+    auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
+                                                                     this->_left,
+                                                                     platform);
 
     out.push_back(mod_reg_rm_byte);
+
+    if(sib.has_value())
+    {
+        out.push_back(sib.value());
+    }
 
     if(offset > BYTE(0) || modrm_has_displace(mod_reg_rm_byte))
     {
@@ -561,11 +633,16 @@ void InstrDiv::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x5E));
 
-    auto [mod_reg_rm_byte, offset] = memloc_as_modrm_and_offset(this->_right,
-                                                                this->_left,
-                                                                platform);
+    auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
+                                                                     this->_left,
+                                                                     platform);
 
     out.push_back(mod_reg_rm_byte);
+
+    if(sib.has_value())
+    {
+        out.push_back(sib.value());
+    }
 
     if(offset > BYTE(0) || modrm_has_displace(mod_reg_rm_byte))
     {

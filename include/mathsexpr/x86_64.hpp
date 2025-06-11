@@ -18,6 +18,10 @@ X86_64_NAMESPACE_BEGIN
 
 /* Helpers notes */
 
+/*
+    https://www.cs.uaf.edu/2002/fall/cs301/Encoding%20instructions.htm
+*/
+
 /* Register Codes (ModR/M, SIB fields) */
 static constexpr std::byte RAX = BYTE(0);  // 000
 static constexpr std::byte RCX = BYTE(1);  // 001
@@ -87,7 +91,7 @@ static constexpr std::byte MOD_INDIRECT_DISP32 = BYTE(0x80);  // [reg + imm32]
 static constexpr std::byte MOD_DIRECT          = BYTE(0xC0);  // Register to register
 
 // SIB Byte (scale-index-base) if R/M == 100
-// Needed if base == RSP or using scaled index
+// Needed if base == RSP | R12 or using scaled index
 // SIB = (scale << 6) | (index << 3) | base
 // scale: 00=1, 01=2, 10=4, 11=8
 
