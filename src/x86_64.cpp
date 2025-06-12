@@ -94,8 +94,7 @@ std::byte encode_platform_fp_register(RegisterId platform_register) noexcept
 }
 
 void memloc_as_string(std::string& out, 
-                      const MemLocPtr& memloc,
-                      uint32_t platform) noexcept
+                      const MemLocPtr& memloc) noexcept
 {
     switch(memloc->type_id())
     {
@@ -118,36 +117,14 @@ void memloc_as_string(std::string& out,
 
         case MemLocTypeId_Stack:
         {
-            switch(platform)
-            {
-                case Platform_Linux:
-                {
-                    RegisterId stack_register = GpRegisters_x86_64_RBP;
+            RegisterId stack_register = GpRegisters_x86_64_RBP;
 
-                    auto stack = memloc_const_cast<Stack>(memloc.get());
+            auto stack = memloc_const_cast<Stack>(memloc.get());
 
-                    std::format_to(std::back_inserter(out), 
-                                "[{} - {}]",
-                                gp_register_as_string(stack_register, ISA_x86_64),
-                                stack->get_offset());
-
-                    break;
-                }
-
-                case Platform_Windows:
-                {
-                    RegisterId stack_register = GpRegisters_x86_64_RSP;
-
-                    auto stack = memloc_const_cast<Stack>(memloc.get());
-
-                    std::format_to(std::back_inserter(out), 
-                                "[{} + {}]",
-                                gp_register_as_string(stack_register, ISA_x86_64),
-                                stack->get_offset() - 8);
-
-                    break;
-                }
-            }
+            std::format_to(std::back_inserter(out), 
+                           "[{} - {}]",
+                           gp_register_as_string(stack_register, ISA_x86_64),
+                           stack->get_offset());
 
             break;
         }
@@ -156,9 +133,7 @@ void memloc_as_string(std::string& out,
         {
             auto mem = memloc_const_cast<Memory>(memloc.get());
 
-            RegisterId regid = mem->get_mem_loc_register() == MemLocRegister_Variables ? 
-                               get_base_ptr_variable_register(platform, ISA_x86_64) : 
-                               get_base_ptr_literal_register(platform, ISA_x86_64);
+            RegisterId regid = mem->get_base_ptr_register();
 
             std::format_to(std::back_inserter(out), 
                            "[{} + {}]",
@@ -187,8 +162,7 @@ std::byte memloc_as_r_byte(const MemLocPtr& memloc) noexcept
     }
 }
 
-std::byte memloc_as_m_byte(const MemLocPtr& memloc,
-                           uint32_t platform) noexcept
+std::byte memloc_as_m_byte(const MemLocPtr& memloc) noexcept
 {
     switch(memloc->type_id())
     {
@@ -201,30 +175,14 @@ std::byte memloc_as_m_byte(const MemLocPtr& memloc,
 
         case MemLocTypeId_Stack:
         {
-            std::byte stack_register = platform == Platform_Linux ? RBP : 
-                                                                    RSP ;
-
-            return stack_register;
+            return RBP;
         }
 
         case MemLocTypeId_Memory:
         {
             auto mem = memloc_const_cast<Memory>(memloc.get());
 
-            if(mem->get_mem_loc_register() == MemLocRegister_Variables)
-            {
-                return encode_platform_gp_register(get_base_ptr_variable_register(platform, 
-                                                                                  ISA_x86_64));
-            }
-            else if(mem->get_mem_loc_register() == MemLocRegister_Literals)
-            {
-                return encode_platform_gp_register(get_base_ptr_literal_register(platform,
-                                                                                 ISA_x86_64));
-            }
-            else
-            {
-                return BYTE(0);
-            }
+            return encode_platform_gp_register(mem->get_base_ptr_register());
         }
 
         default:
@@ -240,8 +198,7 @@ std::byte encode_sib(uint8_t scale, uint8_t index, uint8_t base) noexcept
 using ModRmSibOffset = std::tuple<std::byte, std::optional<std::byte>, std::byte>;
 
 ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from, 
-                                          MemLocPtr to,
-                                          uint32_t platform) noexcept
+                                          MemLocPtr to) noexcept
 {
     switch(from->type_id())
     {
@@ -253,7 +210,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                 {
                     const std::byte modrm = x86_64::MOD_DIRECT | 
                                             memloc_as_r_byte(to) |
-                                            memloc_as_m_byte(from, platform);
+                                            memloc_as_m_byte(from);
 
                     return std::make_tuple(modrm, std::nullopt, BYTE(0));
                 }
@@ -262,7 +219,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                 {
                     auto stack = memloc_cast<Stack>(to.get());
 
-                    const std::byte m_byte = memloc_as_m_byte(to, platform);
+                    const std::byte m_byte = memloc_as_m_byte(to);
 
                     const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
                                             memloc_as_r_byte(from) |
@@ -288,7 +245,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                                                                      x86_64::MOD_INDIRECT;
                     const std::byte modrm = mod |
                                             memloc_as_r_byte(from) |
-                                            memloc_as_m_byte(to, platform);
+                                            memloc_as_m_byte(to);
 
                     return std::make_tuple(modrm, std::nullopt, BYTE(memory->get_offset()));
                 }
@@ -305,7 +262,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                 {
                     auto stack = memloc_cast<Stack>(from.get());
 
-                    const std::byte m_byte = memloc_as_m_byte(from, platform);
+                    const std::byte m_byte = memloc_as_m_byte(from);
 
                     const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
                                             memloc_as_r_byte(to) |
@@ -339,7 +296,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                                                                      x86_64::MOD_INDIRECT;
                     const std::byte modrm = mod | 
                                             memloc_as_r_byte(to) |
-                                            memloc_as_m_byte(from, platform);
+                                            memloc_as_m_byte(from);
 
                     return std::make_tuple(modrm, std::nullopt, BYTE(memory->get_offset()));
                 }
@@ -354,22 +311,22 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
 
 bool modrm_has_displace(const std::byte modrm_byte) noexcept
 {
-    const std::byte mod = modrm_byte >> 6;
+    const std::byte mod = modrm_byte & BYTE(0xC0);
 
     return mod == x86_64::MOD_INDIRECT_DISP8 || mod == x86_64::MOD_INDIRECT_DISP32;
 }
 
 /* Memory instructions */
 
-void InstrMov::as_string(std::string& out, uint32_t platform) const noexcept 
+void InstrMov::as_string(std::string& out) const noexcept 
 {
     std::format_to(std::back_inserter(out), "movsd ");
-    memloc_as_string(out, this->_mem_loc_to, platform);
+    memloc_as_string(out, this->_mem_loc_to);
     std::format_to(std::back_inserter(out), ", ");
-    memloc_as_string(out, this->_mem_loc_from, platform);
+    memloc_as_string(out, this->_mem_loc_from);
 }
 
-void InstrMov::as_bytecode(ByteCode& out, uint32_t platform) const noexcept 
+void InstrMov::as_bytecode(ByteCode& out) const noexcept 
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
@@ -384,8 +341,7 @@ void InstrMov::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     }
 
     auto [mod_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_mem_loc_from,
-                                                                 this->_mem_loc_to,
-                                                                 platform);
+                                                                 this->_mem_loc_to);
 
     out.push_back(mod_rm_byte);
 
@@ -394,155 +350,96 @@ void InstrMov::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
         out.push_back(sib.value());
     }
 
-    if(offset > BYTE(0) || modrm_has_displace(mod_rm_byte))
+    if(modrm_has_displace(mod_rm_byte))
     {
         out.push_back(offset);
     }
 }
 
-void InstrPrologue::as_string(std::string& out, uint32_t platform) const noexcept 
+void InstrPrologue::as_string(std::string& out) const noexcept 
 {
-    switch(platform)
-    {
-        case Platform_Linux:
-            std::format_to(std::back_inserter(out), "push rbp\n");
-            std::format_to(std::back_inserter(out), "mov rbp, rsp\n");
-            std::format_to(std::back_inserter(out), "sub rsp, {}", this->_stack_size);
-            break;
+    std::format_to(std::back_inserter(out), "push rbp\n");
+    std::format_to(std::back_inserter(out), "mov rbp, rsp\n");
+    std::format_to(std::back_inserter(out), "sub rsp, {}", this->_stack_size);
+}
 
-        case Platform_Windows:
-            std::format_to(std::back_inserter(out), "sub rsp, {}", this->_stack_size);
-            break;
+void InstrPrologue::as_bytecode(ByteCode& out) const noexcept 
+{
+    out.push_back(BYTE(0x55)); /* push rbp */
+
+    out.push_back(BYTE(0x48)); /* mov rbp, rsp */
+    out.push_back(BYTE(0x89));
+    out.push_back(BYTE(0xE5));
+
+    out.push_back(x86_64::REX_BASE | x86_64::REX_W); /* REX.W prefix */
+
+    if(this->_stack_size > 127)
+    {
+        out.push_back(BYTE(0x81)); /* sub with single-byte immediate (imm32) */
+    }
+    else
+    {
+        out.push_back(BYTE(0x83)); /* sub with single-byte immediate (imm8) */
+    }
+
+    out.push_back(BYTE(0xEC)); /* rsp */
+
+    /* push rbp adds 8 bytes to rsp and misaligns the stack (we need it to be 16 bytes aligned) */
+    const uint32_t stack_size = static_cast<uint32_t>(this->_stack_size) + 8;
+
+    if(this->_stack_size > 127)
+    {
+        out.push_back(BYTE(stack_size & 0xFF));
+        out.push_back(BYTE((stack_size >> 8) & 0xFF));
+        out.push_back(BYTE((stack_size >> 16) & 0xFF));
+        out.push_back(BYTE((stack_size >> 24) & 0xFF));
+    }
+    else
+    {
+        out.push_back(BYTE(stack_size));
     }
 }
 
-void InstrPrologue::as_bytecode(ByteCode& out, uint32_t platform) const noexcept 
+void InstrEpilogue::as_string(std::string& out) const noexcept 
 {
-    switch(platform)
-    {
-        case Platform_Linux:
-        {
-            out.push_back(BYTE(0x55)); /* push rbp */
-
-            out.push_back(BYTE(0x48)); /* mov rbp, rsp */
-            out.push_back(BYTE(0x89));
-            out.push_back(BYTE(0xE5));
-
-            out.push_back(x86_64::REX_BASE | x86_64::REX_W); /* REX.W prefix */
-
-            if(this->_stack_size > 127)
-            {
-                out.push_back(BYTE(0x81)); /* sub with single-byte immediate (imm32) */
-            }
-            else
-            {
-                out.push_back(BYTE(0x83)); /* sub with single-byte immediate (imm8) */
-            }
-
-            out.push_back(BYTE(0xEC)); /* rsp */
-
-            /* push rbp adds 8 bytes to rsp and misaligns the stack (we need it to be 16 bytes aligned) */
-            const uint32_t stack_size = static_cast<uint32_t>(this->_stack_size) + 8;
-
-            if(this->_stack_size > 127)
-            {
-                out.push_back(BYTE(stack_size & 0xFF));
-                out.push_back(BYTE((stack_size >> 8) & 0xFF));
-                out.push_back(BYTE((stack_size >> 16) & 0xFF));
-                out.push_back(BYTE((stack_size >> 24) & 0xFF));
-            }
-            else
-            {
-                out.push_back(BYTE(stack_size));
-            }
-
-            break;
-        }
-
-        case Platform_Windows:
-        {
-            out.push_back(x86_64::REX_BASE | x86_64::REX_W); /* REX.W prefix */
-
-            if(this->_stack_size > 127)
-            {
-                out.push_back(BYTE(0x81)); /* sub with single-byte immediate (imm32) */
-            }
-            else
-            {
-                out.push_back(BYTE(0x83)); /* sub with single-byte immediate (imm8) */
-            }
-
-            out.push_back(BYTE(0xEC)); /* rsp */
-
-            out.push_back(BYTE(this->_stack_size));
-
-            break;
-        }
-    }
+    std::format_to(std::back_inserter(out), "leave");
 }
 
-void InstrEpilogue::as_string(std::string& out, uint32_t platform) const noexcept 
+void InstrEpilogue::as_bytecode(ByteCode& out) const noexcept 
 {
-    switch(platform)
-    {
-        case Platform_Linux:
-            std::format_to(std::back_inserter(out), "leave");
-            break;
-
-        case Platform_Windows:
-            std::format_to(std::back_inserter(out), "add rsp, {}", this->_stack_size);
-            break;
-    }
-}
-
-void InstrEpilogue::as_bytecode(ByteCode& out, uint32_t platform) const noexcept 
-{
-    switch(platform)
-    {
-        case Platform_Linux:
-            out.push_back(BYTE(0xC9));
-            break;
-
-        case Platform_Windows:
-            out.push_back(x86_64::REX_BASE | x86_64::REX_W); /* REX.W prefix */
-            out.push_back(BYTE(0x83));
-            out.push_back(BYTE(0xC4)); /* rsp */
-            out.push_back(BYTE(this->_stack_size));
-            break;
-    }
+    out.push_back(BYTE(0xC9));
 }
 
 /* Unary ops instructions */
 
-void InstrNeg::as_string(std::string& out, uint32_t platform) const noexcept
+void InstrNeg::as_string(std::string& out) const noexcept
 {
 
 }
 
-void InstrNeg::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
+void InstrNeg::as_bytecode(ByteCode& out) const noexcept
 {
 
 }
 
 /* Binary ops instructions */
 
-void InstrAdd::as_string(std::string& out, uint32_t platform) const noexcept 
+void InstrAdd::as_string(std::string& out) const noexcept 
 {
     std::format_to(std::back_inserter(out), "addsd ");
-    memloc_as_string(out, this->_left, platform);
+    memloc_as_string(out, this->_left);
     std::format_to(std::back_inserter(out), ", ");
-    memloc_as_string(out, this->_right, platform);
+    memloc_as_string(out, this->_right);
 }
 
-void InstrAdd::as_bytecode(ByteCode& out, uint32_t platform) const noexcept 
+void InstrAdd::as_bytecode(ByteCode& out) const noexcept 
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x58));
 
     auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
-                                                                     this->_left,
-                                                                     platform);
+                                                                     this->_left);
 
     out.push_back(mod_reg_rm_byte);
 
@@ -557,23 +454,22 @@ void InstrAdd::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     }
 }
 
-void InstrSub::as_string(std::string& out, uint32_t platform) const noexcept 
+void InstrSub::as_string(std::string& out) const noexcept 
 {
     std::format_to(std::back_inserter(out), "subsd ");
-    memloc_as_string(out, this->_left, platform);
+    memloc_as_string(out, this->_left);
     std::format_to(std::back_inserter(out), ", ");
-    memloc_as_string(out, this->_right, platform);
+    memloc_as_string(out, this->_right);
 }
 
-void InstrSub::as_bytecode(ByteCode& out, uint32_t platform) const noexcept 
+void InstrSub::as_bytecode(ByteCode& out) const noexcept 
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x5C));
 
     auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
-                                                                     this->_left,
-                                                                     platform);
+                                                                     this->_left);
 
     out.push_back(mod_reg_rm_byte);
 
@@ -588,23 +484,22 @@ void InstrSub::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     }
 }
 
-void InstrMul::as_string(std::string& out, uint32_t platform) const noexcept 
+void InstrMul::as_string(std::string& out) const noexcept 
 {
     std::format_to(std::back_inserter(out), "mulsd ");
-    memloc_as_string(out, this->_left, platform);
+    memloc_as_string(out, this->_left);
     std::format_to(std::back_inserter(out), ", ");
-    memloc_as_string(out, this->_right, platform);
+    memloc_as_string(out, this->_right);
 }
 
-void InstrMul::as_bytecode(ByteCode& out, uint32_t platform) const noexcept 
+void InstrMul::as_bytecode(ByteCode& out) const noexcept 
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x59));
 
     auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
-                                                                     this->_left,
-                                                                     platform);
+                                                                     this->_left);
 
     out.push_back(mod_reg_rm_byte);
 
@@ -619,23 +514,22 @@ void InstrMul::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
     }
 }
 
-void InstrDiv::as_string(std::string& out, uint32_t platform) const noexcept 
+void InstrDiv::as_string(std::string& out) const noexcept 
 {
     std::format_to(std::back_inserter(out), "divsd ");
-    memloc_as_string(out, this->_left, platform);
+    memloc_as_string(out, this->_left);
     std::format_to(std::back_inserter(out), ", ");
-    memloc_as_string(out, this->_right, platform);
+    memloc_as_string(out, this->_right);
 }
 
-void InstrDiv::as_bytecode(ByteCode& out, uint32_t platform) const noexcept 
+void InstrDiv::as_bytecode(ByteCode& out) const noexcept 
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
     out.push_back(BYTE(0x5E));
 
     auto [mod_reg_rm_byte, sib, offset] = memloc_as_modrm_sib_offset(this->_right,
-                                                                     this->_left,
-                                                                     platform);
+                                                                     this->_left);
 
     out.push_back(mod_reg_rm_byte);
 
@@ -652,12 +546,12 @@ void InstrDiv::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
 
 /* Func ops instructions */
 
-void InstrCall::as_string(std::string& out, uint32_t platform) const noexcept
+void InstrCall::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "call {}", this->_call_name);
 }
 
-void InstrCall::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
+void InstrCall::as_bytecode(ByteCode& out) const noexcept
 {
     /* TODO: decide which register to pass the function address to */
     /* MEMO: On Windows, we need to allocate 40 bytes of shadow space on the stack */
@@ -665,12 +559,12 @@ void InstrCall::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
 
 /* Terminator instructions */
 
-void InstrRet::as_string(std::string& out, uint32_t platform) const noexcept
+void InstrRet::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "ret");
 }
 
-void InstrRet::as_bytecode(ByteCode& out, uint32_t platform) const noexcept
+void InstrRet::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0xC3));
 }

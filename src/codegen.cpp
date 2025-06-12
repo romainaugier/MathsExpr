@@ -10,9 +10,10 @@ MATHSEXPR_NAMESPACE_BEGIN
 
 /* Code Generation */
 
-CodeGenerator::CodeGenerator(uint32_t isa, uint32_t platform) : _isa(isa), _platform(platform)
+CodeGenerator::CodeGenerator(uint32_t isa, PlatformABIPtr platform_abi) : _isa(isa), 
+                                                                          _platform_abi(platform_abi)
 {
-    this->_target_generator = CodeGenerator::create_target_generator(isa, platform);
+    this->_target_generator = CodeGenerator::create_target_generator(isa, platform_abi);
 
     if(this->_target_generator == nullptr)
     {
@@ -49,7 +50,7 @@ bool CodeGenerator::build(const SSA& ssa,
 
                 if(loc->type_id() == MemLocTypeId_Register)
                 {
-                    MemLocPtr mem = std::make_shared<Memory>(MemLocRegister_Variables, 
+                    MemLocPtr mem = std::make_shared<Memory>(this->_platform_abi->get_variable_base_ptr(), 
                                                             symtable.get_variable_offset(variable->get_name()));
 
                     this->_instructions.push_back(this->_target_generator->create_mov(mem, loc));
@@ -65,7 +66,7 @@ bool CodeGenerator::build(const SSA& ssa,
 
                 if(loc->type_id() == MemLocTypeId_Register)
                 {
-                    MemLocPtr mem = std::make_shared<Memory>(MemLocRegister_Literals, 
+                    MemLocPtr mem = std::make_shared<Memory>(this->_platform_abi->get_literal_base_ptr(), 
                                                              symtable.get_literal_offset(literal->get_name()));
 
                     this->_instructions.push_back(this->_target_generator->create_mov(mem, loc));
@@ -214,7 +215,7 @@ std::tuple<bool, ByteCode> CodeGenerator::as_bytecode() const noexcept
 
     for(const auto& instruction : this->_instructions)
     {
-        instruction->as_bytecode(code, this->_platform);
+        instruction->as_bytecode(code);
     }
 
     return std::make_tuple(true, code);
@@ -226,7 +227,7 @@ std::tuple<bool, std::string> CodeGenerator::as_string() const noexcept
 
     for(const auto& instruction : this->_instructions)
     {
-        instruction->as_string(code, this->_platform);
+        instruction->as_string(code);
         std::format_to(std::back_inserter(code), "\n");
     }
 
@@ -243,7 +244,7 @@ std::tuple<bool, std::string> CodeGenerator::as_bytecode_hex_string() const noex
     for(const auto& instruction : this->_instructions)
     {
         tmp.clear();
-        instruction->as_bytecode(tmp, this->_platform);
+        instruction->as_bytecode(tmp);
 
         for(const auto& byte : tmp)
         {
@@ -252,7 +253,7 @@ std::tuple<bool, std::string> CodeGenerator::as_bytecode_hex_string() const noex
 
         std::format_to(std::back_inserter(hexcode), " ; ");
 
-        instruction->as_string(hexcode, this->_platform);
+        instruction->as_string(hexcode);
 
         std::format_to(std::back_inserter(hexcode), "\n");
     }
@@ -260,9 +261,10 @@ std::tuple<bool, std::string> CodeGenerator::as_bytecode_hex_string() const noex
     return std::make_tuple(true, hexcode);
 }
 
-TargetCodeGeneratorPtr CodeGenerator::create_target_generator(uint32_t isa, uint32_t platform) noexcept
+TargetCodeGeneratorPtr CodeGenerator::create_target_generator(uint32_t isa,
+                                                              PlatformABIPtr platform_abi) noexcept
 {
-    return TargetRegistry::create_target(isa, platform);
+    return TargetRegistry::create_target(isa, platform_abi);
 }
 
 /* Registry */
@@ -286,7 +288,8 @@ void TargetRegistry::register_target(uint32_t isa, TargetFactory factory) noexce
     registry[isa] = std::move(factory);
 }
 
-TargetCodeGeneratorPtr TargetRegistry::create_target(uint32_t isa, uint32_t platform) noexcept
+TargetCodeGeneratorPtr TargetRegistry::create_target(uint32_t isa, 
+                                                     PlatformABIPtr platform_abi) noexcept
 {
     auto& registry = get_registry();
     
@@ -297,7 +300,7 @@ TargetCodeGeneratorPtr TargetRegistry::create_target(uint32_t isa, uint32_t plat
         return nullptr;
     }
     
-    return it->second(platform);
+    return it->second(platform_abi);
 }
 
 std::unordered_set<uint32_t> TargetRegistry::get_supported_isas() noexcept
@@ -315,7 +318,7 @@ std::unordered_set<uint32_t> TargetRegistry::get_supported_isas() noexcept
     return isas;
 }
 
-bool TargetRegistry::is_supported(uint32_t isa, uint32_t platform) noexcept 
+bool TargetRegistry::is_supported(uint32_t isa, PlatformABIPtr platform_abi) noexcept 
 {
     auto& registry = get_registry();
     
@@ -326,7 +329,7 @@ bool TargetRegistry::is_supported(uint32_t isa, uint32_t platform) noexcept
         return false;
     }
     
-    auto target = it->second(platform);
+    auto target = it->second(platform_abi);
 
     return target->is_valid();
 }

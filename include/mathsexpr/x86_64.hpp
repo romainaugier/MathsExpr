@@ -115,8 +115,8 @@ public:
     InstrMov(MemLocPtr& from, MemLocPtr& to) : _mem_loc_from(from),
                                                _mem_loc_to(to) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 class MATHSEXPR_API InstrPrologue : public Instr
@@ -126,8 +126,8 @@ class MATHSEXPR_API InstrPrologue : public Instr
 public:
     InstrPrologue(uint64_t stack_size) : _stack_size(stack_size) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 class MATHSEXPR_API InstrEpilogue : public Instr
@@ -137,8 +137,8 @@ class MATHSEXPR_API InstrEpilogue : public Instr
 public:
     InstrEpilogue(uint64_t stack_size) : _stack_size(stack_size) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 /* Unary ops instructions */
@@ -150,8 +150,8 @@ class MATHSEXPR_API InstrNeg : public Instr
 public:
     InstrNeg(MemLocPtr& operand) : _operand(operand) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 /* Binary ops instructions */
@@ -165,8 +165,8 @@ public:
     InstrAdd(MemLocPtr& left, MemLocPtr& right) : _left(left),
                                                   _right(right) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 class MATHSEXPR_API InstrSub : public Instr
@@ -178,8 +178,8 @@ public:
     InstrSub(MemLocPtr& left, MemLocPtr& right) : _left(left),
                                                   _right(right) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 class MATHSEXPR_API InstrMul : public Instr
@@ -191,8 +191,8 @@ public:
     InstrMul(MemLocPtr& left, MemLocPtr& right) : _left(left),
                                                   _right(right) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 class MATHSEXPR_API InstrDiv : public Instr
@@ -204,8 +204,8 @@ public:
     InstrDiv(MemLocPtr& left, MemLocPtr& right) : _left(left),
                                                   _right(right) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 /* Func ops instructions */
@@ -217,8 +217,8 @@ class MATHSEXPR_API InstrCall : public Instr
 public:
     InstrCall(std::string_view call_name) : _call_name(call_name) {}
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 /* Terminator instructions */
@@ -227,19 +227,16 @@ class MATHSEXPR_API InstrRet : public Instr
 {
 public:
 
-    virtual void as_string(std::string& out, uint32_t platform) const noexcept override;
-    virtual void as_bytecode(ByteCode& out, uint32_t platform) const noexcept override;
+    virtual void as_string(std::string& out) const noexcept override;
+    virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
 X86_64_NAMESPACE_END
 
 class MATHSEXPR_API X86_64_CodeGenerator : public TargetCodeGenerator
 {
-private:
-    uint32_t _platform;
-
 public:
-    explicit X86_64_CodeGenerator(uint32_t platform) : _platform(platform) {}
+    X86_64_CodeGenerator(PlatformABIPtr platform_abi) : TargetCodeGenerator(platform_abi) {}
 
     virtual ~X86_64_CodeGenerator() override = default;
 
@@ -255,10 +252,6 @@ public:
     virtual InstrPtr create_div(MemLocPtr& left, MemLocPtr& right) override;
     virtual InstrPtr create_call(std::string_view call_name) override;
     virtual InstrPtr create_ret() override;
-
-    virtual uint32_t get_isa() const noexcept override { return ISA_x86_64; }
-    virtual uint32_t get_platform() const noexcept override { return this->_platform; }
-    virtual std::string_view get_target_name() const noexcept override { return "x86_64"; }
 
     virtual void optimize_instr_sequence(std::vector<InstrPtr>& instructions) noexcept override;
 };

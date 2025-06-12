@@ -152,6 +152,12 @@ public:
 /* Should return a valid register if we can reuse a register to store the result */
 const MemLocPtr RegisterAllocator::get_reusable_register(const SSAStmtPtr& statement) const noexcept
 {
+    /* Assume that for now, except x86_64, all targets use three-address form (aarch64, nvptx...) */
+    if(this->_platform_abi->get_target_isa() != ISA_x86_64)
+    {
+        return nullptr;
+    }
+
     switch(statement->type_id())
     {
         case SSAStmtTypeId_Variable:
@@ -321,7 +327,12 @@ bool RegisterAllocator::allocate(SSA& ssa,
         */
 
         /* We only deal with fp values (double or float) so we only care about this rv */
-        RegisterId rv_reg = get_call_return_value_fp_register(this->_platform, this->_isa);
+        RegisterId rv_reg = this->_platform_abi->get_call_return_value_fp_register();
+
+        if(rv_reg == INVALID_FP_REGISTER)
+        {
+            return false;
+        }
 
         SSAStmtPtr& last_stmt = statements.back();
 
@@ -392,7 +403,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
                         break;
                     }
 
-                    this->_mapping[stmt] = std::make_shared<Memory>(MemLocRegister_Literals,
+                    this->_mapping[stmt] = std::make_shared<Memory>(this->_platform_abi->get_literal_base_ptr(),
                                                                     symtable.get_literal_offset(literal->get_name()));
 
                     break;
@@ -415,7 +426,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
                         break;
                     }
 
-                    this->_mapping[stmt] = std::make_shared<Memory>(MemLocRegister_Variables,
+                    this->_mapping[stmt] = std::make_shared<Memory>(this->_platform_abi->get_variable_base_ptr(),
                                                                     symtable.get_variable_offset(variable->get_name()));
 
                     break;
@@ -446,17 +457,8 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
                 case SSAStmtTypeId_FuncOp:
                 {
-                    RegisterId return_value_register = get_call_return_value_fp_register(this->_platform, 
-                                                                                         this->_isa);
-
-                    if(return_value_register == INVALID_FP_REGISTER)
-                    {
-                        log_error("Error during register allocation, check the log for more information");
-                        return false;
-                    }
-
-                    this->_mapping[stmt] = std::make_shared<Register>(return_value_register);
-                    actives.emplace_back(stmt, return_value_register);
+                    this->_mapping[stmt] = std::make_shared<Register>(rv_reg);
+                    actives.emplace_back(stmt, rv_reg);
 
                     auto funcop = statement_cast<SSAStmtFunctionOp>(stmt.get());
 
@@ -467,14 +469,12 @@ bool RegisterAllocator::allocate(SSA& ssa,
                         return false;
                     }
 
-                    if(funcop->get_arguments().size() > get_call_max_args_fp_registers(this->_platform,
-                                                                                       this->_isa))
+                    if(funcop->get_arguments().size() > this->_platform_abi->get_call_max_args_fp_registers())
                     {
                         return false;
                     }
 
-                    auto& args_registers = get_call_args_fp_registers(this->_platform,
-                                                                      this->_isa);
+                    auto& args_registers = this->_platform_abi->get_call_args_fp_registers();
 
                     for(auto [i, argument] : std::ranges::enumerate_view(funcop->get_arguments()))
                     {
@@ -594,7 +594,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
             {
                 auto spill = statement_cast<SSAStmtSpillOp>(stmt.get());
 
-                this->_mapping[stmt] = std::make_shared<Stack>(stack_offset + 8);
+                this->_mapping[stmt] = std::make_shared<Stack>(stack_offset);
                 stack_offset += 8;
 
                 needed_stack_size = std::max(needed_stack_size, stack_offset);
@@ -622,7 +622,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
             max_pressure = std::max(max_pressure, static_cast<uint32_t>(available_register));
 
             /* Handle spilling */
-            if(available_register >= this->_max_registers)
+            if(available_register >= this->_platform_abi->get_max_available_fp_registers())
             {
                 auto [stmt_to_spill, free_reg] = select_spill_candidate(actives);
 
@@ -805,7 +805,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
     if(needed_stack_size > 0)
     {
-        /* Stack needs to be aligned to 16 for sse */
+        /* Stack needs to be aligned to 16 */
         needed_stack_size = ((needed_stack_size + 15) & ~15);
 
         log_debug("Adding stackalloc op (needed space: {})", needed_stack_size);

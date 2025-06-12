@@ -42,6 +42,14 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         return false;
     }
 
+    PlatformABIPtr platform_abi = get_current_platform_abi(isa, platform);
+
+    if(platform_abi == nullptr)
+    {
+        log_error("Current ABI is not supported");
+        return false;
+    }
+
     this->_variables.clear();
     this->_literals.clear();
 
@@ -104,7 +112,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         ssa.print();
     }
 
-    RegisterAllocator reg_allocator(platform, isa);
+    RegisterAllocator reg_allocator(platform_abi);
 
     if(!reg_allocator.allocate(ssa, symtable))
     {
@@ -118,7 +126,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         ssa.print();
     }
 
-    CodeGenerator generator(isa, platform);
+    CodeGenerator generator(isa, platform_abi);
 
     if(!generator.build(ssa, reg_allocator, symtable))
     {

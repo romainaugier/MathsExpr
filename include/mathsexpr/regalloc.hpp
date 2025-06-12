@@ -9,6 +9,7 @@
 
 #include "mathsexpr/ssa.hpp"
 #include "mathsexpr/symtable.hpp"
+#include "mathsexpr/abi.hpp"
 
 #include <unordered_map>
 
@@ -86,7 +87,7 @@ public:
 
 class MATHSEXPR_API Memory : public MemLoc
 {
-    uint64_t _base_ptr; /* MemLocRegister value where the base ptr is located */
+    RegisterId _base_ptr; /* RegisterId value where the base ptr is located */
     uint64_t _offset;
 
 public:
@@ -98,7 +99,7 @@ public:
 
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 
-    uint64_t get_mem_loc_register() const noexcept { return this->_base_ptr; }
+    RegisterId get_base_ptr_register() const noexcept { return this->_base_ptr; }
 
     uint64_t get_offset() const noexcept { return this->_offset; }
 };
@@ -128,22 +129,14 @@ T* memloc_cast(MemLoc* loc) noexcept
 class MATHSEXPR_API RegisterAllocator
 {
     std::unordered_map<SSAStmtPtr, MemLocPtr> _mapping;
-
-    uint32_t _platform;
-    uint32_t _isa;
-
-    uint64_t _max_registers;
+    PlatformABIPtr _platform_abi;
 
     static bool prepass_commutative_operand_swap(SSA& ssa) noexcept;
 
     const MemLocPtr get_reusable_register(const SSAStmtPtr& statement) const noexcept;
 
 public:
-    RegisterAllocator(uint32_t platform, 
-                      uint32_t isa) : _platform(platform),
-                                      _isa(isa),
-                                      _max_registers(get_max_available_fp_registers(platform, isa))
-                                 {}
+    RegisterAllocator(PlatformABIPtr platform_abi) : _platform_abi(platform_abi) {}
 
     bool allocate(SSA& ssa, const SymbolTable& symtable) noexcept;
 

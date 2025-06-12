@@ -54,6 +54,12 @@
 #define MATHSEXPR_SIZEOF_PTR 4
 #endif /* INTPTR_MAX == INT64_MAX || defined(__x86_64__) */
 
+#if defined(__x86_64__)
+#define MATHSEXPR_X86_64
+#elif defined(__aarch64__)
+#define MATHSEXPR_AARCH64
+#endif /* defined(__x86_64__) */
+
 #if defined(_WIN32)
 #define MATHSEXPR_WIN
 #if !defined(WIN32_LEAN_AND_MEAN)

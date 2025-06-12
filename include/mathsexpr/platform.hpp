@@ -102,33 +102,6 @@ enum FpRegisters_aarch64 : RegisterId
 MATHSEXPR_API const char* gp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
 MATHSEXPR_API const char* fp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
 
-/* base ptr for the variables values is passed as the first parameter */
-MATHSEXPR_API RegisterId get_base_ptr_variable_register(uint32_t platform, uint32_t isa) noexcept;
-
-/* base ptr for the variables values is passed as the second parameter */
-MATHSEXPR_API RegisterId get_base_ptr_literal_register(uint32_t platform, uint32_t isa) noexcept;
-
-/* 
-    Returns the maximum number of registers that can be used simultaneously, used by 
-    the register allocator to know how many registers we can use
-*/
-MATHSEXPR_API uint64_t get_max_available_gp_registers(uint32_t platform, uint32_t isa) noexcept;
-MATHSEXPR_API uint64_t get_max_available_fp_registers(uint32_t platform, uint32_t isa) noexcept;
-
-/* Returns the register id of the register used to store the return value of a function call */
-MATHSEXPR_API RegisterId get_call_return_value_gp_register(uint32_t platform, uint32_t isa) noexcept;
-MATHSEXPR_API RegisterId get_call_return_value_fp_register(uint32_t platform, uint32_t isa) noexcept;
-
-/* Returns the number of registers we can use to store arguments for a function call */
-MATHSEXPR_API uint64_t get_call_max_args_gp_registers(uint32_t platform, uint32_t isa) noexcept;
-MATHSEXPR_API uint64_t get_call_max_args_fp_registers(uint32_t platform, uint32_t isa) noexcept;
-
-/* Returns the register order for arguments placement before a function call */
-MATHSEXPR_API const std::vector<RegisterId>& get_call_args_gp_registers(uint32_t platform, 
-                                                                        uint32_t isa) noexcept;
-MATHSEXPR_API const std::vector<RegisterId>& get_call_args_fp_registers(uint32_t platform, 
-                                                                        uint32_t isa) noexcept;
-
 MATHSEXPR_NAMESPACE_END
 
 #endif /* !defined(__MATHSEXPR_PLATFORM) */
