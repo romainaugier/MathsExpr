@@ -2,16 +2,16 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/regalloc.hpp"
-#include "mathsexpr/op.hpp"
-#include "mathsexpr/log.hpp"
+#include "mathexpr/regalloc.hpp"
+#include "mathexpr/op.hpp"
+#include "mathexpr/log.hpp"
 
 #include <ranges>
 #include <algorithm>
 #include <cstring>
 #include <unordered_set>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 /* Register allocation on SSA */
 
@@ -76,7 +76,7 @@ public:
 
     bool get(size_t index) const noexcept
     {
-        MATHSEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
+        MATHEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
 
         const auto [arr_index, bit_index]= this->get_index(index);
 
@@ -85,7 +85,7 @@ public:
 
     void set(size_t index) 
     {
-        MATHSEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
+        MATHEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
 
         const auto [arr_index, bit_index]= this->get_index(index);
 
@@ -94,7 +94,7 @@ public:
 
     void clear(size_t index) noexcept
     {
-        MATHSEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
+        MATHEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
 
         const auto [arr_index, bit_index]= this->get_index(index);
 
@@ -817,4 +817,4 @@ bool RegisterAllocator::allocate(SSA& ssa,
     return true;
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

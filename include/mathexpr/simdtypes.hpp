@@ -4,18 +4,18 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_SIMDTYPES)
-#define __MATHSEXPR_SIMDTYPES
+#if !defined(__MATHEXPR_SIMDTYPES)
+#define __MATHEXPR_SIMDTYPES
 
-#include "mathsexpr/mathsexpr.hpp"
+#include "mathexpr/common.hpp"
 
 #include <immintrin.h>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 using double2 = __m128d;
 using double4 = __m256d;
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_SIMDTYPES) */
+#endif /* !defined(__MATHEXPR_SIMDTYPES) */

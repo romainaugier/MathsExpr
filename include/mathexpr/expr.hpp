@@ -4,12 +4,12 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_EXPR)
-#define __MATHSEXPR_EXPR
+#if !defined(__MATHEXPR_EXPR)
+#define __MATHEXPR_EXPR
 
-#include "mathsexpr/constants.hpp"
-#include "mathsexpr/execmem.hpp"
-#include "mathsexpr/string_hash.hpp"
+#include "mathexpr/constants.hpp"
+#include "mathexpr/execmem.hpp"
+#include "mathexpr/string_hash.hpp"
 
 #include <string>
 #include <unordered_map>
@@ -17,7 +17,7 @@
 #include <vector>
 #include <array>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 enum ExprPrintFlags : uint64_t
 {
@@ -34,7 +34,7 @@ enum ExprPrintFlags : uint64_t
 
 using Variables = std::unordered_map<std::string, double, string_hash, std::equal_to<>>;
 
-class MATHSEXPR_API Expr
+class MATHEXPR_API Expr
 {
     std::string _expr;
 
@@ -98,6 +98,6 @@ public:
     }
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_EXPR) */
+#endif /* !defined(__MATHEXPR_EXPR) */

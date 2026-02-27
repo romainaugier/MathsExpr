@@ -4,16 +4,16 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_LEXER)
-#define __MATHSEXPRLEXER_
+#if !defined(__MATHEXPR_LEXER)
+#define __MATHEXPRLEXER_
 
-#include "mathsexpr/mathsexpr.hpp"
+#include "mathexpr/common.hpp"
 
 #include <string_view>
 #include <vector>
 #include <limits>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 enum LexerTokenType : uint32_t 
 {
@@ -49,16 +49,16 @@ static const LexerToken EMPTY_TOKEN = { "", LexerTokenType::Empty };
 
 static constexpr uint32_t LEXER_ERROR = std::numeric_limits<std::uint32_t>::max();
 
-MATHSEXPR_API std::tuple<bool, LexerTokens> lexer_lex_expression(std::string_view expression) noexcept;
+MATHEXPR_API std::tuple<bool, LexerTokens> lexer_lex_expression(std::string_view expression) noexcept;
 
-MATHSEXPR_API uint32_t lexer_get_operator_precedence(char op) noexcept;
+MATHEXPR_API uint32_t lexer_get_operator_precedence(char op) noexcept;
 
-MATHSEXPR_API bool lexer_is_operator_right_associative(char op) noexcept;
+MATHEXPR_API bool lexer_is_operator_right_associative(char op) noexcept;
 
-MATHSEXPR_API const char* lexer_token_type_to_string(const uint32_t type) noexcept;
+MATHEXPR_API const char* lexer_token_type_to_string(const uint32_t type) noexcept;
 
-MATHSEXPR_API void lexer_print_tokens(const LexerTokens& tokens) noexcept;
+MATHEXPR_API void lexer_print_tokens(const LexerTokens& tokens) noexcept;
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_LEXER) */
+#endif /* !defined(__MATHEXPR_LEXER) */

@@ -2,19 +2,19 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/platform.hpp"
+#include "mathexpr/platform.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 uint32_t get_current_platform() noexcept
 {
-#if defined(MATHSEXPR_WIN)
+#if defined(MATHEXPR_WIN)
     return Platform_Windows;
-#elif defined(MATHSEXPR_LINUX)
+#elif defined(MATHEXPR_LINUX)
     return Platform_Linux;
-#elif defined(MATHSEXPR_MACOS)
+#elif defined(MATHEXPR_MACOS)
     return Platform_MacOS;
-#endif /* defined(MATHSEXPR_WIN) */
+#endif /* defined(MATHEXPR_WIN) */
     return Platform_Invalid;
 }
 
@@ -35,11 +35,11 @@ const char* platform_as_string(uint32_t platform) noexcept
 
 uint32_t get_current_isa() noexcept
 {
-#if defined(MATHSEXPR_X64)
+#if defined(MATHEXPR_X64)
     return ISA_x86_64;
-#elif defined(MATHSEXPR_AARCH64)
+#elif defined(MATHEXPR_AARCH64)
     return ISA_aarch64;
-#endif /* defined(MATHSEXPR_X64) */
+#endif /* defined(MATHEXPR_X64) */
     return ISA_Invalid;
 }
 
@@ -178,4 +178,4 @@ const char* fp_register_as_string(uint32_t reg, uint32_t isa) noexcept
     }
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

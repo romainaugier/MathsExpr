@@ -1,3 +1,8 @@
+# build dirs/files
 build
 install
+compile_flags.txt
+
+# editors
 .vscode
+.zed

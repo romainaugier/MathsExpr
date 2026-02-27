@@ -2,18 +2,18 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved. 
 
-#include "mathsexpr/lexer.hpp"
-#include "mathsexpr/log.hpp"
+#include "mathexpr/lexer.hpp"
+#include "mathexpr/log.hpp"
 
 #include <cctype>
 #include <format>
 #include <iostream>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 /* Lexing utils */
 
-MATHSEXPR_FORCE_INLINE bool is_operator(unsigned int c)
+MATHEXPR_FORCE_INLINE bool is_operator(unsigned int c)
 {
     return (c == '+') |
            (c == '-') |
@@ -21,17 +21,17 @@ MATHSEXPR_FORCE_INLINE bool is_operator(unsigned int c)
            (c == '/');
 }
 
-MATHSEXPR_FORCE_INLINE bool is_paren(unsigned int c)
+MATHEXPR_FORCE_INLINE bool is_paren(unsigned int c)
 {
     return (c == '(') | (c == ')');
 }
 
-MATHSEXPR_FORCE_INLINE bool is_comma(unsigned int c)
+MATHEXPR_FORCE_INLINE bool is_comma(unsigned int c)
 {
     return c == ',';
 }
 
-MATHSEXPR_FORCE_INLINE uint32_t consume_literal(std::string_view s)
+MATHEXPR_FORCE_INLINE uint32_t consume_literal(std::string_view s)
 {
     const std::string_view orig = s;
 
@@ -58,7 +58,7 @@ MATHSEXPR_FORCE_INLINE uint32_t consume_literal(std::string_view s)
     return start;
 }
 
-MATHSEXPR_FORCE_INLINE uint32_t consume_symbol(std::string_view s)
+MATHEXPR_FORCE_INLINE uint32_t consume_symbol(std::string_view s)
 {
     uint32_t start = 0;
 
@@ -192,4 +192,4 @@ void lexer_print_tokens(const LexerTokens& tokens) noexcept
     }
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

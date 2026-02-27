@@ -2,29 +2,29 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved. 
 
-#include "mathsexpr/log.hpp"
+#include "mathexpr/log.hpp"
 
 #include <stdio.h>
 
-#if defined(MATHSEXPR_WIN)
+#if defined(MATHEXPR_WIN)
 #include <Windows.h>
-#endif // defined(MATHSEXPR_WIN)
+#endif // defined(MATHEXPR_WIN)
 
-void MATHSEXPR_LIB_ENTRY lib_entry() noexcept
+void MATHEXPR_LIB_ENTRY lib_entry() noexcept
 {
-#if MATHSEXPR_DEBUG
-    mathsexpr::log_debug("mathsexpr entry");
-#endif // MATHSEXPR_DEBUG
+#if MATHEXPR_DEBUG
+    mathexpr::log_debug("mathexpr entry");
+#endif // MATHEXPR_DEBUG
 }
 
-void MATHSEXPR_LIB_EXIT lib_exit() noexcept
+void MATHEXPR_LIB_EXIT lib_exit() noexcept
 {
-#if MATHSEXPR_DEBUG
-    mathsexpr::log_debug("mathsexpr exit");
-#endif // MATHSEXPR_DEBUG
+#if MATHEXPR_DEBUG
+    mathexpr::log_debug("mathexpr exit");
+#endif // MATHEXPR_DEBUG
 }
 
-#if defined(MATHSEXPR_WIN)
+#if defined(MATHEXPR_WIN)
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) 
 {
     switch (ul_reason_for_call) {
@@ -44,4 +44,4 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
     return TRUE;
 }
-#endif // defined(MATHSEXPR_WIN)
+#endif // defined(MATHEXPR_WIN)

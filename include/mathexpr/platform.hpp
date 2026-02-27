@@ -4,15 +4,15 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_PLATFORM)
-#define __MATHSEXPR_PLATFORM
+#if !defined(__MATHEXPR_PLATFORM)
+#define __MATHEXPR_PLATFORM
 
-#include "mathsexpr/mathsexpr.hpp"
+#include "mathexpr/common.hpp"
 
 #include <limits>
 #include <vector>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 enum Platform : uint32_t
 {
@@ -22,9 +22,9 @@ enum Platform : uint32_t
     Platform_Invalid,
 };
 
-MATHSEXPR_API uint32_t get_current_platform() noexcept;
+MATHEXPR_API uint32_t get_current_platform() noexcept;
 
-MATHSEXPR_API const char* platform_as_string(uint32_t platform) noexcept;
+MATHEXPR_API const char* platform_as_string(uint32_t platform) noexcept;
 
 enum ISA : uint32_t
 {
@@ -33,9 +33,9 @@ enum ISA : uint32_t
     ISA_Invalid,
 };
 
-MATHSEXPR_API uint32_t get_current_isa() noexcept;
+MATHEXPR_API uint32_t get_current_isa() noexcept;
 
-MATHSEXPR_API const char* isa_as_string(uint32_t isa) noexcept;
+MATHEXPR_API const char* isa_as_string(uint32_t isa) noexcept;
 
 using RegisterId = uint32_t;
 
@@ -99,9 +99,9 @@ enum FpRegisters_aarch64 : RegisterId
 };
 
 /* registers as string, convenient for pretty printing */
-MATHSEXPR_API const char* gp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
-MATHSEXPR_API const char* fp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
+MATHEXPR_API const char* gp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
+MATHEXPR_API const char* fp_register_as_string(RegisterId reg, uint32_t isa) noexcept;
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_PLATFORM) */
+#endif /* !defined(__MATHEXPR_PLATFORM) */

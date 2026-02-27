@@ -2,9 +2,9 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/op.hpp"
+#include "mathexpr/op.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 const char* op_unary_to_string(const uint32_t type) noexcept
 {
@@ -82,4 +82,4 @@ bool op_binary_is_commutative(const uint32_t type) noexcept
     }
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

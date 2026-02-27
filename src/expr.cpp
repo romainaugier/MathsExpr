@@ -2,12 +2,12 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/expr.hpp"
-#include "mathsexpr/log.hpp"
-#include "mathsexpr/codegen.hpp"
-#include "mathsexpr/regalloc.hpp"
+#include "mathexpr/expr.hpp"
+#include "mathexpr/log.hpp"
+#include "mathexpr/codegen.hpp"
+#include "mathexpr/regalloc.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 std::tuple<bool, double> Expr::_evaluate_internal(const double* values) const noexcept
 {
@@ -186,4 +186,4 @@ bool Expr::compile(uint64_t debug_flags) noexcept
     return true;
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

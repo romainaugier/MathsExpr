@@ -2,10 +2,10 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/log.hpp"
+#include "mathexpr/log.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 Logger& Logger::get_instance() { static Logger l; return l; }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

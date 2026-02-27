@@ -2,11 +2,11 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/codegen.hpp"
-#include "mathsexpr/op.hpp"
-#include "mathsexpr/log.hpp"
+#include "mathexpr/codegen.hpp"
+#include "mathexpr/op.hpp"
+#include "mathexpr/log.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 /* Code Generation */
 
@@ -334,4 +334,4 @@ bool TargetRegistry::is_supported(uint32_t isa, PlatformABIPtr platform_abi) noe
     return target->is_valid();
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

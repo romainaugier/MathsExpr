@@ -2,11 +2,11 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/symtable.hpp"
+#include "mathexpr/symtable.hpp"
 
 #include <queue>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 void SymbolTable::print() const noexcept
 {
@@ -119,4 +119,4 @@ size_t SymbolTable::get_literal_offset(std::string_view literal_name) const noex
     return it->second.get_offset();
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

@@ -2,10 +2,10 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/x86_64.hpp"
-#include "mathsexpr/log.hpp"
+#include "mathexpr/x86_64.hpp"
+#include "mathexpr/log.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 REGISTER_TARGET(ISA_x86_64, X86_64_CodeGenerator);
 
@@ -626,4 +626,4 @@ void X86_64_CodeGenerator::optimize_instr_sequence(std::vector<InstrPtr>& instru
 
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

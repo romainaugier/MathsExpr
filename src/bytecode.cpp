@@ -2,11 +2,11 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/bytecode.hpp"
+#include "mathexpr/bytecode.hpp"
 
 #include <ranges>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 void bytecode_as_hex_string(const ByteCode& bytecode,
                             std::string& out,
@@ -26,4 +26,4 @@ void bytecode_as_hex_string(const ByteCode& bytecode,
     }
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

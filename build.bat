@@ -6,7 +6,7 @@ rem All rights reserved.
 
 rem Little utility batch script to build the library
 
-call :LogInfo "Building MathsExpr"
+call :LogInfo "Building MathExpr"
 
 set BUILDTYPE=Release
 set RUNTESTS=0

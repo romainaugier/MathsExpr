@@ -4,20 +4,20 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_CODEGEN)
-#define __MATHSEXPR_CODEGEN
+#if !defined(__MATHEXPR_CODEGEN)
+#define __MATHEXPR_CODEGEN
 
-#include "mathsexpr/regalloc.hpp"
-#include "mathsexpr/symtable.hpp"
-#include "mathsexpr/bytecode.hpp"
+#include "mathexpr/regalloc.hpp"
+#include "mathexpr/symtable.hpp"
+#include "mathexpr/bytecode.hpp"
 
 #include <variant>
 #include <functional>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 /* Base abstract instruction that is target agnostic */
-class MATHSEXPR_API Instr
+class MATHEXPR_API Instr
 {
     PlatformABIPtr _platform_abi;
 
@@ -36,7 +36,7 @@ public:
 using InstrPtr = std::shared_ptr<Instr>;
 
 /* Target specific code generator, subclassed in target files (x86_64.cpp, aarch64.cpp ...) */
-class MATHSEXPR_API TargetCodeGenerator
+class MATHEXPR_API TargetCodeGenerator
 {
     PlatformABIPtr _platform_abi;
 
@@ -70,7 +70,7 @@ public:
 using TargetCodeGeneratorPtr = std::unique_ptr<TargetCodeGenerator>;
 
 /* Main code generator, target agnostic */
-class MATHSEXPR_API CodeGenerator 
+class MATHEXPR_API CodeGenerator 
 {
 private:
     std::vector<InstrPtr> _instructions;
@@ -101,7 +101,7 @@ private:
 };
 
 /* Target factory registration */
-class MATHSEXPR_API TargetRegistry
+class MATHEXPR_API TargetRegistry
 {
 public:
     using TargetFactory = std::function<TargetCodeGeneratorPtr(PlatformABIPtr)>;
@@ -126,6 +126,6 @@ private:
         }(); \
     }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_CODEGEN) */
+#endif /* !defined(__MATHEXPR_CODEGEN) */

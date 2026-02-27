@@ -4,15 +4,15 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_X86_64)
-#define __MATHSEXPR_X86_64
+#if !defined(__MATHEXPR_X86_64)
+#define __MATHEXPR_X86_64
 
-#include "mathsexpr/codegen.hpp"
+#include "mathexpr/codegen.hpp"
 
 #define X86_64_NAMESPACE_BEGIN namespace x86_64 {
 #define X86_64_NAMESPACE_END }
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 X86_64_NAMESPACE_BEGIN
 
@@ -106,7 +106,7 @@ static const std::unordered_set<std::byte> prefixes = {
 
 /* Mem related-instructions */
 
-class MATHSEXPR_API InstrMov : public Instr
+class MATHEXPR_API InstrMov : public Instr
 {
     MemLocPtr _mem_loc_from;
     MemLocPtr _mem_loc_to;
@@ -119,7 +119,7 @@ public:
     virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
-class MATHSEXPR_API InstrPrologue : public Instr
+class MATHEXPR_API InstrPrologue : public Instr
 {
     uint64_t _stack_size;
 
@@ -130,7 +130,7 @@ public:
     virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
-class MATHSEXPR_API InstrEpilogue : public Instr
+class MATHEXPR_API InstrEpilogue : public Instr
 {
     uint64_t _stack_size;
 
@@ -143,7 +143,7 @@ public:
 
 /* Unary ops instructions */
 
-class MATHSEXPR_API InstrNeg : public Instr
+class MATHEXPR_API InstrNeg : public Instr
 {
     MemLocPtr _operand;
 
@@ -156,7 +156,7 @@ public:
 
 /* Binary ops instructions */
 
-class MATHSEXPR_API InstrAdd : public Instr
+class MATHEXPR_API InstrAdd : public Instr
 {
     MemLocPtr _left;
     MemLocPtr _right;
@@ -169,7 +169,7 @@ public:
     virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
-class MATHSEXPR_API InstrSub : public Instr
+class MATHEXPR_API InstrSub : public Instr
 {
     MemLocPtr _left;
     MemLocPtr _right;
@@ -182,7 +182,7 @@ public:
     virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
-class MATHSEXPR_API InstrMul : public Instr
+class MATHEXPR_API InstrMul : public Instr
 {
     MemLocPtr _left;
     MemLocPtr _right;
@@ -195,7 +195,7 @@ public:
     virtual void as_bytecode(ByteCode& out) const noexcept override;
 };
 
-class MATHSEXPR_API InstrDiv : public Instr
+class MATHEXPR_API InstrDiv : public Instr
 {
     MemLocPtr _left;
     MemLocPtr _right;
@@ -210,7 +210,7 @@ public:
 
 /* Func ops instructions */
 
-class MATHSEXPR_API InstrCall : public Instr
+class MATHEXPR_API InstrCall : public Instr
 {
     std::string_view _call_name;
 
@@ -223,7 +223,7 @@ public:
 
 /* Terminator instructions */
 
-class MATHSEXPR_API InstrRet : public Instr
+class MATHEXPR_API InstrRet : public Instr
 {
 public:
 
@@ -233,7 +233,7 @@ public:
 
 X86_64_NAMESPACE_END
 
-class MATHSEXPR_API X86_64_CodeGenerator : public TargetCodeGenerator
+class MATHEXPR_API X86_64_CodeGenerator : public TargetCodeGenerator
 {
 public:
     X86_64_CodeGenerator(PlatformABIPtr platform_abi) : TargetCodeGenerator(platform_abi) {}
@@ -256,6 +256,6 @@ public:
     virtual void optimize_instr_sequence(std::vector<InstrPtr>& instructions) noexcept override;
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_X86_64) */
+#endif /* !defined(__MATHEXPR_X86_64) */

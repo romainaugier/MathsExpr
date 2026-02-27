@@ -18,7 +18,7 @@ if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
-target_compile_definitions(${PROJECT_NAME} PUBLIC MATHSEXPR_BUILD_SHARED)
+target_compile_definitions(${PROJECT_NAME} PUBLIC MATHEXPR_BUILD_SHARED)
 
 target_include_directories(${PROJECT_NAME}
                            PUBLIC

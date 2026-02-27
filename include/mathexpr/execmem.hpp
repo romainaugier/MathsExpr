@@ -4,24 +4,24 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_EXECMEM)
-#define __MATHSEXPR_EXECMEM
+#if !defined(__MATHEXPR_EXECMEM)
+#define __MATHEXPR_EXECMEM
 
-#include "mathsexpr/bytecode.hpp"
-#include "mathsexpr/log.hpp"
+#include "mathexpr/bytecode.hpp"
+#include "mathexpr/log.hpp"
 
 #include <cstring>
 
-#if defined(MATHSEXPR_WIN)
+#if defined(MATHEXPR_WIN)
 #include <windows.h>
 #else
 #include <sys/mman.h>
 #include <unistd.h>
-#endif /* defined(MATHSEXPR_WIN) */
+#endif /* defined(MATHEXPR_WIN) */
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
-class MATHSEXPR_API ExecMem 
+class MATHEXPR_API ExecMem 
 {
 private:
 
@@ -31,7 +31,7 @@ private:
 
     bool allocate() noexcept
     {
-#if defined(MATHSEXPR_WIN)
+#if defined(MATHEXPR_WIN)
         this->_memory = VirtualAlloc(nullptr, _size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
         if(this->_memory == nullptr) 
@@ -47,7 +47,7 @@ private:
             log_error("Failed to allocate executable memory");
             return false;
         }
-#endif /* defined(MATHSEXPR_WIN) */
+#endif /* defined(MATHEXPR_WIN) */
 
         return true;
     }
@@ -59,11 +59,11 @@ private:
             return;
         }
 
-#if defined(MATHSEXPR_WIN)
+#if defined(MATHEXPR_WIN)
         VirtualFree(this->_memory, 0, MEM_RELEASE);
 #else
         munmap(this->_memory, this->_size);
-#endif /* defined(MATHSEXPR_WIN) */
+#endif /* defined(MATHEXPR_WIN) */
         this->_memory = nullptr;
     }
 public:
@@ -135,7 +135,7 @@ public:
             return true;
         }
         
-#if defined(MATHSEXPR_WIN)
+#if defined(MATHEXPR_WIN)
         DWORD oldProtect;
 
         if(!VirtualProtect(this->_memory, this->_size, PAGE_EXECUTE_READ, &oldProtect)) 
@@ -149,7 +149,7 @@ public:
             log_error("Failed to make memory executable");
             return false;
         }
-#endif /* defined(MATHSEXPR_WIN) */
+#endif /* defined(MATHEXPR_WIN) */
         this->_locked = true;
 
         return true;
@@ -170,6 +170,6 @@ public:
     bool is_locked() const { return this->_locked; }
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_EXECMEM) */
+#endif /* !defined(__MATHEXPR_EXECMEM) */

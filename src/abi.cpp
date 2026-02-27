@@ -2,9 +2,9 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/abi.hpp"
+#include "mathexpr/abi.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 PlatformABIPtr get_current_platform_abi(uint32_t isa, uint32_t platform) noexcept
 {
@@ -158,4 +158,4 @@ const std::vector<RegisterId>& LinuxX64ABI::get_call_args_fp_registers() const n
     return regs;
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

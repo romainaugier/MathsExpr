@@ -2,16 +2,16 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/ssa.hpp"
-#include "mathsexpr/op.hpp"
-#include "mathsexpr/log.hpp"
+#include "mathexpr/ssa.hpp"
+#include "mathexpr/op.hpp"
+#include "mathexpr/log.hpp"
 
 #include <ranges>
 #include <unordered_map>
 #include <algorithm>
 #include <format>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 void SSAStmtVariable::print(std::ostream_iterator<char>& out) const noexcept
 {
@@ -388,4 +388,4 @@ bool SSA::build_from_ast(const AST& ast) noexcept
     return no_error;
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

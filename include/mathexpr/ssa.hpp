@@ -4,13 +4,13 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_SSA)
-#define __MATHSEXPR_SSA
+#if !defined(__MATHEXPR_SSA)
+#define __MATHEXPR_SSA
 
-#include "mathsexpr/ast.hpp"
-#include "mathsexpr/platform.hpp"
+#include "mathexpr/ast.hpp"
+#include "mathexpr/platform.hpp"
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 enum SSAStmtTypeId : int
 {
@@ -46,7 +46,7 @@ struct LiveRange {
     }
 };
 
-class MATHSEXPR_API SSAStmt
+class MATHEXPR_API SSAStmt
 {
     uint64_t _version;
     uint64_t _register;
@@ -90,7 +90,7 @@ public:
 
 using SSAStmtPtr = std::shared_ptr<SSAStmt>;
 
-class MATHSEXPR_API SSAStmtVariable : public SSAStmt
+class MATHEXPR_API SSAStmtVariable : public SSAStmt
 {
     std::string_view _name;
 
@@ -113,7 +113,7 @@ public:
     std::string_view get_name() const noexcept { return this->_name; }
 };
 
-class MATHSEXPR_API SSAStmtLiteral : public SSAStmt
+class MATHEXPR_API SSAStmtLiteral : public SSAStmt
 {
     std::string_view _name;
 
@@ -136,7 +136,7 @@ public:
     std::string_view get_name() const noexcept { return this->_name; }
 };
 
-class MATHSEXPR_API SSAStmtUnOp : public SSAStmt
+class MATHEXPR_API SSAStmtUnOp : public SSAStmt
 {
     SSAStmtPtr _operand;
 
@@ -167,7 +167,7 @@ public:
     void set_operand(SSAStmtPtr& operand) noexcept { this->_operand = operand; }
 };
 
-class MATHSEXPR_API SSAStmtBinOp : public SSAStmt
+class MATHEXPR_API SSAStmtBinOp : public SSAStmt
 {
     SSAStmtPtr _left;
     SSAStmtPtr _right;
@@ -211,7 +211,7 @@ public:
     uint32_t get_op() const noexcept { return this->_op; }
 };
 
-class MATHSEXPR_API SSAStmtFunctionOp : public SSAStmt
+class MATHEXPR_API SSAStmtFunctionOp : public SSAStmt
 {
     std::vector<SSAStmtPtr> _arguments;
 
@@ -242,7 +242,7 @@ public:
     const std::vector<SSAStmtPtr>& get_arguments() const noexcept { return this->_arguments; }
 };
 
-class MATHSEXPR_API SSAStmtAllocateStackOp : public SSAStmt
+class MATHEXPR_API SSAStmtAllocateStackOp : public SSAStmt
 {
     uint64_t _size;
 
@@ -265,7 +265,7 @@ public:
     uint64_t get_stack_size() const noexcept { return this->_size; }
 };
 
-class MATHSEXPR_API SSAStmtSpillOp : public SSAStmt
+class MATHEXPR_API SSAStmtSpillOp : public SSAStmt
 {
     SSAStmtPtr _operand;
 
@@ -290,7 +290,7 @@ public:
     const SSAStmtPtr& get_operand() const noexcept { return this->_operand; }
 };
 
-class MATHSEXPR_API SSAStmtLoadOp : public SSAStmt
+class MATHEXPR_API SSAStmtLoadOp : public SSAStmt
 {
     SSAStmtPtr _spill;
 
@@ -337,9 +337,9 @@ T* statement_cast(SSAStmt* stmt) noexcept
     return nullptr;
 }
 
-MATHSEXPR_API bool ssa_statement_needs_register(const SSAStmt* stmt) noexcept;
+MATHEXPR_API bool ssa_statement_needs_register(const SSAStmt* stmt) noexcept;
 
-class MATHSEXPR_API SSA
+class MATHEXPR_API SSA
 {
     std::vector<SSAStmtPtr> _statements;
 
@@ -359,6 +359,6 @@ public:
     std::vector<SSAStmtPtr>& get_statements() noexcept { return this->_statements; }
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_SSA) */
+#endif /* !defined(__MATHEXPR_SSA) */

@@ -4,16 +4,16 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_REGALLOC)
-#define __MATHSEXPR_REGALLOC
+#if !defined(__MATHEXPR_REGALLOC)
+#define __MATHEXPR_REGALLOC
 
-#include "mathsexpr/ssa.hpp"
-#include "mathsexpr/symtable.hpp"
-#include "mathsexpr/abi.hpp"
+#include "mathexpr/ssa.hpp"
+#include "mathexpr/symtable.hpp"
+#include "mathexpr/abi.hpp"
 
 #include <unordered_map>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 enum MemLocTypeId : uint32_t
 {
@@ -29,7 +29,7 @@ enum MemLocRegister : uint32_t
     MemLocRegister_Literals,
 };
 
-class MATHSEXPR_API MemLoc
+class MATHEXPR_API MemLoc
 {
 public:
     virtual ~MemLoc() noexcept {}
@@ -41,7 +41,7 @@ public:
 
 using MemLocPtr = std::shared_ptr<MemLoc>;
 
-class MATHSEXPR_API MemLocInvalid : public MemLoc
+class MATHEXPR_API MemLocInvalid : public MemLoc
 {
 public:
     virtual void print() const noexcept override {}
@@ -51,7 +51,7 @@ public:
     virtual int type_id() const noexcept override { return this->static_type_id(); }
 };
 
-class MATHSEXPR_API Register : public MemLoc
+class MATHEXPR_API Register : public MemLoc
 {
     uint32_t _id;
 
@@ -67,7 +67,7 @@ public:
     RegisterId get_id() const noexcept { return this->_id; }
 };
 
-class MATHSEXPR_API Stack : public MemLoc 
+class MATHEXPR_API Stack : public MemLoc 
 {
     uint64_t _offset;
 
@@ -85,7 +85,7 @@ public:
     int64_t get_signed_offset() const noexcept { return -static_cast<int64_t>(this->_offset); }
 };
 
-class MATHSEXPR_API Memory : public MemLoc
+class MATHEXPR_API Memory : public MemLoc
 {
     RegisterId _base_ptr; /* RegisterId value where the base ptr is located */
     uint64_t _offset;
@@ -126,7 +126,7 @@ T* memloc_cast(MemLoc* loc) noexcept
     return nullptr;
 }
 
-class MATHSEXPR_API RegisterAllocator
+class MATHEXPR_API RegisterAllocator
 {
     std::unordered_map<SSAStmtPtr, MemLocPtr> _mapping;
     PlatformABIPtr _platform_abi;
@@ -150,6 +150,6 @@ public:
     }
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_REGALLOC) */
+#endif /* !defined(__MATHEXPR_REGALLOC) */

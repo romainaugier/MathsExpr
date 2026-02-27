@@ -2,13 +2,13 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved.
 
-#include "mathsexpr/ast.hpp"
-#include "mathsexpr/log.hpp"
-#include "mathsexpr/op.hpp"
+#include "mathexpr/ast.hpp"
+#include "mathexpr/log.hpp"
+#include "mathexpr/op.hpp"
 
 #include <format>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 void ASTNodeVariable::print(std::ostream_iterator<char>& out, size_t indent) const noexcept
 {
@@ -92,11 +92,11 @@ class Parser
 public:
     Parser(const LexerTokens& tokens) : _tokens(tokens), _index(0) {}
 
-    MATHSEXPR_FORCE_INLINE void advance() noexcept { this->_index++; }
+    MATHEXPR_FORCE_INLINE void advance() noexcept { this->_index++; }
 
-    MATHSEXPR_FORCE_INLINE bool is_at_end() const noexcept { return this->_index >= this->_tokens.size(); }
+    MATHEXPR_FORCE_INLINE bool is_at_end() const noexcept { return this->_index >= this->_tokens.size(); }
 
-    MATHSEXPR_FORCE_INLINE const LexerToken& current() const noexcept
+    MATHEXPR_FORCE_INLINE const LexerToken& current() const noexcept
     {
         if(this->is_at_end())
         {
@@ -106,7 +106,7 @@ public:
         return this->_tokens[this->_index];
     }
 
-    MATHSEXPR_FORCE_INLINE const LexerToken& peek() const noexcept
+    MATHEXPR_FORCE_INLINE const LexerToken& peek() const noexcept
     {
         if(this->_index >= (this->_tokens.size() - 2))
         {
@@ -307,4 +307,4 @@ bool AST::build_from_tokens(const LexerTokens& tokens) noexcept
     return true;
 }
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END

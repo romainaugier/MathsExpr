@@ -4,11 +4,11 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_ABI)
-#define __MATHSEXPRABI_
+#if !defined(__MATHEXPR_ABI)
+#define __MATHEXPRABI_
 
-#include "mathsexpr/platform.hpp"
-#include "mathsexpr/bytecode.hpp"
+#include "mathexpr/platform.hpp"
+#include "mathexpr/bytecode.hpp"
 
 /* 
     ABIs
@@ -18,7 +18,7 @@
     https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
 */
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 enum PlatformABIID : uint32_t
 {
@@ -26,7 +26,7 @@ enum PlatformABIID : uint32_t
     PlatformABIID_LinuxX64,
 };
 
-class MATHSEXPR_API PlatformABI 
+class MATHEXPR_API PlatformABI 
 {
 public:
     virtual ~PlatformABI() = default;
@@ -152,6 +152,6 @@ public:
     virtual const std::vector<RegisterId>& get_call_args_fp_registers() const noexcept override;
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_ABI) */
+#endif /* !defined(__MATHEXPR_ABI) */

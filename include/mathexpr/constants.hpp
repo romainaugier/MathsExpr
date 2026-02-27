@@ -4,17 +4,17 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_CONSTANTS)
-#define __MATHSEXPR_CONSTANTS
+#if !defined(__MATHEXPR_CONSTANTS)
+#define __MATHEXPR_CONSTANTS
 
-#include "mathsexpr/mathsexpr.hpp"
+#include "mathexpr/common.hpp"
 
 #include <limits>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 static constexpr uint64_t UINT64_T_MAX = std::numeric_limits<uint64_t>::max();
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_CONSTANTS) */
+#endif /* !defined(__MATHEXPR_CONSTANTS) */

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_BYTECODE)
-#define __MATHSEXPR_BYTECODE
+#if !defined(__MATHEXPR_BYTECODE)
+#define __MATHEXPR_BYTECODE
 
-#include "mathsexpr/mathsexpr.hpp"
+#include "mathexpr/common.hpp"
 
 #include <vector>
 #include <string>
@@ -27,12 +27,12 @@ struct std::formatter<std::byte> {
     }
 };
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
-MATHSEXPR_FORCE_INLINE constexpr std::byte BYTE(auto b) noexcept { return static_cast<std::byte>(b); }
+MATHEXPR_FORCE_INLINE constexpr std::byte BYTE(auto b) noexcept { return static_cast<std::byte>(b); }
 
 using ByteCode = std::vector<std::byte>;
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_BYTECODE) */
+#endif /* !defined(__MATHEXPR_BYTECODE) */

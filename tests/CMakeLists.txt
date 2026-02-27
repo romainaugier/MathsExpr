@@ -8,7 +8,7 @@ file(GLOB_RECURSE TEST_FILES *.cpp)
 
 foreach(test_file ${TEST_FILES})
     get_filename_component(TESTNAME ${test_file} NAME_WLE)
-    message(STATUS "Adding mathsexpr test : ${TESTNAME}")
+    message(STATUS "Adding mathexpr test : ${TESTNAME}")
 
     add_executable(${TESTNAME} ${test_file})
     set_target_options(${TESTNAME})
@@ -44,7 +44,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
     )
 endif()
 
-# Copy mathsexpr and other needed shared lib to the tests bin directory
+# Copy mathexpr and other needed shared lib to the tests bin directory
 
 if(WIN32)
     add_custom_command(

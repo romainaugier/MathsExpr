@@ -4,17 +4,17 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_AST)
-#define __MATHSEXPR_AST
+#if !defined(__MATHEXPR_AST)
+#define __MATHEXPR_AST
 
-#include "mathsexpr/lexer.hpp"
+#include "mathexpr/lexer.hpp"
 
 #include <memory>
 #include <iostream>
 #include <iterator>
 #include <optional>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 enum ASTNodeTypeId : int
 {
@@ -25,7 +25,7 @@ enum ASTNodeTypeId : int
     ASTNodeTypeId_FuncOp = 5,
 };
 
-class MATHSEXPR_API ASTNode
+class MATHEXPR_API ASTNode
 {
     /* Needed for Sethi-Ullman */
     bool _needs_reg;
@@ -46,7 +46,7 @@ public:
     void set_needs_reg(const bool needs_reg) noexcept { this->_needs_reg = needs_reg; }
 };
 
-class MATHSEXPR_API ASTNodeVariable : public ASTNode
+class MATHEXPR_API ASTNodeVariable : public ASTNode
 {
     std::string_view _name;
 
@@ -69,7 +69,7 @@ public:
     std::string_view get_name() const noexcept { return this->_name; }
 };
 
-class MATHSEXPR_API ASTNodeLiteral : public ASTNode
+class MATHEXPR_API ASTNodeLiteral : public ASTNode
 {
     std::string_view _name;
 
@@ -96,7 +96,7 @@ public:
     std::string_view get_name() const noexcept { return this->_name; }
 };
 
-class MATHSEXPR_API ASTNodeUnaryOp : public ASTNode
+class MATHEXPR_API ASTNodeUnaryOp : public ASTNode
 {
     std::shared_ptr<ASTNode> _operand;
 
@@ -126,7 +126,7 @@ public:
     uint32_t get_op() const noexcept { return this->_op; }
 };
 
-class MATHSEXPR_API ASTNodeBinaryOp : public ASTNode
+class MATHEXPR_API ASTNodeBinaryOp : public ASTNode
 {
     std::shared_ptr<ASTNode> _left;
     std::shared_ptr<ASTNode> _right;
@@ -161,7 +161,7 @@ public:
     uint32_t get_op() const noexcept { return this->_op; }
 };
 
-class MATHSEXPR_API ASTNodeFunctionOp : public ASTNode
+class MATHEXPR_API ASTNodeFunctionOp : public ASTNode
 {
     std::vector<std::shared_ptr<ASTNode>> _arguments;
 
@@ -211,7 +211,7 @@ const T* node_cast(const ASTNode* node) noexcept
     return nullptr;
 }
 
-class MATHSEXPR_API AST
+class MATHEXPR_API AST
 {
 public:
     static constexpr size_t PRINT_INDENT_SIZE = 4;
@@ -239,6 +239,6 @@ public:
     }
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_AST) */
+#endif /* !defined(__MATHEXPR_AST) */

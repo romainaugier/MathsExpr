@@ -4,16 +4,16 @@
 
 #pragma once
 
-#if !defined(__MATHSEXPR_SYMTABLE)
-#define __MATHSEXPR_SYMTABLE
+#if !defined(__MATHEXPR_SYMTABLE)
+#define __MATHEXPR_SYMTABLE
 
-#include "mathsexpr/ast.hpp"
+#include "mathexpr/ast.hpp"
 
 #include <string_view>
 #include <map>
 #include <format>
 
-MATHSEXPR_NAMESPACE_BEGIN
+MATHEXPR_NAMESPACE_BEGIN
 
 static constexpr size_t INVALID_SYMBOL_ID = std::numeric_limits<size_t>::max();
 
@@ -21,7 +21,7 @@ static constexpr size_t VALUE_OFFSET = sizeof(double);
 
 static constexpr size_t INVALID_OFFSET = std::numeric_limits<size_t>::max();
 
-class MATHSEXPR_API Symbol 
+class MATHEXPR_API Symbol 
 {
     std::string_view _name;
     size_t _id;
@@ -48,7 +48,7 @@ public:
     bool valid() const noexcept { return this->_id != INVALID_SYMBOL_ID; }
 };
 
-class MATHSEXPR_API SymbolVariable : public Symbol
+class MATHEXPR_API SymbolVariable : public Symbol
 {
 public:
     SymbolVariable() : Symbol("", INVALID_SYMBOL_ID) {}
@@ -56,7 +56,7 @@ public:
     SymbolVariable(std::string_view name, size_t id) : Symbol(name, id) {}
 };
 
-class MATHSEXPR_API SymbolLiteral : public Symbol
+class MATHEXPR_API SymbolLiteral : public Symbol
 {
     double _value;
 
@@ -68,7 +68,7 @@ public:
     double get_value() const noexcept { return this->_value; }
 };
 
-class MATHSEXPR_API SymbolTable
+class MATHEXPR_API SymbolTable
 {
     std::map<std::string_view, SymbolVariable> _variables;
 
@@ -102,6 +102,6 @@ public:
     }
 };
 
-MATHSEXPR_NAMESPACE_END
+MATHEXPR_NAMESPACE_END
 
-#endif /* !defined(__MATHSEXPR_SYMTABLE) */
+#endif /* !defined(__MATHEXPR_SYMTABLE) */

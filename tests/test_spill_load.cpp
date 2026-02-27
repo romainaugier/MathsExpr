@@ -2,26 +2,26 @@
 // Copyright (c) 2025 - Present Romain Augier
 // All rights reserved. 
 
-#include "mathsexpr/log.hpp"
-#include "mathsexpr/expr.hpp"
+#include "mathexpr/log.hpp"
+#include "mathexpr/expr.hpp"
 
 #include "utils.hpp"
 
 int main(int argc, char** argv)
 {
-    mathsexpr::set_log_level(mathsexpr::LogLevel::Debug);
-    mathsexpr::log_info("Starting spill/load test");
+    mathexpr::set_log_level(mathexpr::LogLevel::Debug);
+    mathexpr::log_info("Starting spill/load test");
 
     const char* expression = "(d / f) / ((c - e) / ((b / f) / ((a / b) - (((a - ((b - e) / ((c / e) / (a - f)))) / ((d - e) - (f - (a / b)))) - "
                              "((c - (d / f)) / (((e / b) - (f / a)) / (b - (c - d))))) / (c - d))))";
 
     // const char* expression = "(d / f) / (c - e) / b * a";
 
-    mathsexpr::Expr expr(expression);
+    mathexpr::Expr expr(expression);
 
-    if(!expr.compile(mathsexpr::ExprPrintFlags_PrintAll))
+    if(!expr.compile(mathexpr::ExprPrintFlags_PrintAll))
     {
-        mathsexpr::log_error("Error while compiling expression");
+        mathexpr::log_error("Error while compiling expression");
         return 1;
     }
 
@@ -36,11 +36,11 @@ int main(int argc, char** argv)
 
     if(!success)
     {
-        mathsexpr::log_error("Error during expression evaluation");
+        mathexpr::log_error("Error during expression evaluation");
         return false;
     }
 
-    mathsexpr::log_info("expr \"{}\" evaluated: ({}, {}, {}, {}, {}, {}) = {}", 
+    mathexpr::log_info("expr \"{}\" evaluated: ({}, {}, {}, {}, {}, {}) = {}", 
                         expression,
                         a, b, c, d, e, f,
                         res);
@@ -50,7 +50,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    mathsexpr::log_info("Finished spill/load test");
+    mathexpr::log_info("Finished spill/load test");
 
     return 0;
 }
