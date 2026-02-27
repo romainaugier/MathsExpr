@@ -19,54 +19,54 @@ X86_64_NAMESPACE_BEGIN
 
 /* Utilities to remap memory locations assigned by the register allocator */
 
-/* 
-    Translates a platform general purpose register (from enums in platform.hpp) 
-    to the encoding used in ModR/M 
+/*
+    Translates a platform general purpose register (from enums in platform.hpp)
+    to the encoding used in ModR/M
 */
 std::byte encode_platform_gp_register(RegisterId platform_register) noexcept
 {
     switch(platform_register)
     {
-        case GpRegisters_x86_64_RAX: 
+        case GpRegisters_x86_64_RAX:
             return RAX;
-        case GpRegisters_x86_64_RBX: 
+        case GpRegisters_x86_64_RBX:
             return RBX;
-        case GpRegisters_x86_64_RCX: 
+        case GpRegisters_x86_64_RCX:
             return RCX;
-        case GpRegisters_x86_64_RDX: 
+        case GpRegisters_x86_64_RDX:
             return RDX;
-        case GpRegisters_x86_64_RSI: 
+        case GpRegisters_x86_64_RSI:
             return RSI;
-        case GpRegisters_x86_64_RDI: 
+        case GpRegisters_x86_64_RDI:
             return RDI;
-        case GpRegisters_x86_64_RBP: 
+        case GpRegisters_x86_64_RBP:
             return RBP;
-        case GpRegisters_x86_64_RSP: 
+        case GpRegisters_x86_64_RSP:
             return RSP;
-        case GpRegisters_x86_64_R8: 
+        case GpRegisters_x86_64_R8:
             return R8;
-        case GpRegisters_x86_64_R9: 
+        case GpRegisters_x86_64_R9:
             return R9;
-        case GpRegisters_x86_64_R10: 
+        case GpRegisters_x86_64_R10:
             return R10;
-        case GpRegisters_x86_64_R11: 
+        case GpRegisters_x86_64_R11:
             return R11;
-        case GpRegisters_x86_64_R12: 
+        case GpRegisters_x86_64_R12:
             return R12;
-        case GpRegisters_x86_64_R13: 
+        case GpRegisters_x86_64_R13:
             return R13;
-        case GpRegisters_x86_64_R14: 
+        case GpRegisters_x86_64_R14:
             return R14;
-        case GpRegisters_x86_64_R15: 
+        case GpRegisters_x86_64_R15:
             return R15;
     }
 
     return BYTE(0);
 }
 
-/* 
-    Translates a platform floating point register (from enums in platform.hpp) 
-    to the encoding used in ModR/M 
+/*
+    Translates a platform floating point register (from enums in platform.hpp)
+    to the encoding used in ModR/M
 */
 std::byte encode_platform_fp_register(RegisterId platform_register) noexcept
 {
@@ -93,7 +93,7 @@ std::byte encode_platform_fp_register(RegisterId platform_register) noexcept
     return BYTE(0);
 }
 
-void memloc_as_string(std::string& out, 
+void memloc_as_string(std::string& out,
                       const MemLocPtr& memloc) noexcept
 {
     switch(memloc->type_id())
@@ -121,7 +121,7 @@ void memloc_as_string(std::string& out,
 
             auto stack = memloc_const_cast<Stack>(memloc.get());
 
-            std::format_to(std::back_inserter(out), 
+            std::format_to(std::back_inserter(out),
                            "[{} - {}]",
                            gp_register_as_string(stack_register, ISA_x86_64),
                            stack->get_offset());
@@ -135,7 +135,7 @@ void memloc_as_string(std::string& out,
 
             RegisterId regid = mem->get_base_ptr_register();
 
-            std::format_to(std::back_inserter(out), 
+            std::format_to(std::back_inserter(out),
                            "[{} + {}]",
                            gp_register_as_string(regid, ISA_x86_64),
                            mem->get_offset());
@@ -197,7 +197,7 @@ std::byte encode_sib(uint8_t scale, uint8_t index, uint8_t base) noexcept
 
 using ModRmSibOffset = std::tuple<std::byte, std::optional<std::byte>, std::byte>;
 
-ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from, 
+ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                                           MemLocPtr to) noexcept
 {
     switch(from->type_id())
@@ -208,7 +208,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
             {
                 case MemLocTypeId_Register:
                 {
-                    const std::byte modrm = x86_64::MOD_DIRECT | 
+                    const std::byte modrm = x86_64::MOD_DIRECT |
                                             memloc_as_r_byte(to) |
                                             memloc_as_m_byte(from);
 
@@ -221,7 +221,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
 
                     const std::byte m_byte = memloc_as_m_byte(to);
 
-                    const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
+                    const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 |
                                             memloc_as_r_byte(from) |
                                             m_byte;
 
@@ -241,7 +241,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                 {
                     auto memory = memloc_cast<Memory>(to.get());
 
-                    const std::byte mod = memory->get_offset() > 0 ? x86_64::MOD_INDIRECT_DISP8 : 
+                    const std::byte mod = memory->get_offset() > 0 ? x86_64::MOD_INDIRECT_DISP8 :
                                                                      x86_64::MOD_INDIRECT;
                     const std::byte modrm = mod |
                                             memloc_as_r_byte(from) |
@@ -264,7 +264,7 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
 
                     const std::byte m_byte = memloc_as_m_byte(from);
 
-                    const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 | 
+                    const std::byte modrm = x86_64::MOD_INDIRECT_DISP8 |
                                             memloc_as_r_byte(to) |
                                             m_byte;
 
@@ -292,9 +292,9 @@ ModRmSibOffset memloc_as_modrm_sib_offset(MemLocPtr from,
                 {
                     auto memory = memloc_cast<Memory>(from.get());
 
-                    const std::byte mod = memory->get_offset() > 0 ? x86_64::MOD_INDIRECT_DISP8 : 
+                    const std::byte mod = memory->get_offset() > 0 ? x86_64::MOD_INDIRECT_DISP8 :
                                                                      x86_64::MOD_INDIRECT;
-                    const std::byte modrm = mod | 
+                    const std::byte modrm = mod |
                                             memloc_as_r_byte(to) |
                                             memloc_as_m_byte(from);
 
@@ -318,7 +318,7 @@ bool modrm_has_displace(const std::byte modrm_byte) noexcept
 
 /* Memory instructions */
 
-void InstrMov::as_string(std::string& out) const noexcept 
+void InstrMov::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "movsd ");
     memloc_as_string(out, this->_mem_loc_to);
@@ -326,7 +326,7 @@ void InstrMov::as_string(std::string& out) const noexcept
     memloc_as_string(out, this->_mem_loc_from);
 }
 
-void InstrMov::as_bytecode(ByteCode& out) const noexcept 
+void InstrMov::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
@@ -356,14 +356,14 @@ void InstrMov::as_bytecode(ByteCode& out) const noexcept
     }
 }
 
-void InstrPrologue::as_string(std::string& out) const noexcept 
+void InstrPrologue::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "push rbp\n");
     std::format_to(std::back_inserter(out), "mov rbp, rsp\n");
     std::format_to(std::back_inserter(out), "sub rsp, {}", this->_stack_size);
 }
 
-void InstrPrologue::as_bytecode(ByteCode& out) const noexcept 
+void InstrPrologue::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0x55)); /* push rbp */
 
@@ -400,12 +400,12 @@ void InstrPrologue::as_bytecode(ByteCode& out) const noexcept
     }
 }
 
-void InstrEpilogue::as_string(std::string& out) const noexcept 
+void InstrEpilogue::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "leave");
 }
 
-void InstrEpilogue::as_bytecode(ByteCode& out) const noexcept 
+void InstrEpilogue::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0xC9));
 }
@@ -424,7 +424,7 @@ void InstrNeg::as_bytecode(ByteCode& out) const noexcept
 
 /* Binary ops instructions */
 
-void InstrAdd::as_string(std::string& out) const noexcept 
+void InstrAdd::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "addsd ");
     memloc_as_string(out, this->_left);
@@ -432,7 +432,7 @@ void InstrAdd::as_string(std::string& out) const noexcept
     memloc_as_string(out, this->_right);
 }
 
-void InstrAdd::as_bytecode(ByteCode& out) const noexcept 
+void InstrAdd::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
@@ -454,7 +454,7 @@ void InstrAdd::as_bytecode(ByteCode& out) const noexcept
     }
 }
 
-void InstrSub::as_string(std::string& out) const noexcept 
+void InstrSub::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "subsd ");
     memloc_as_string(out, this->_left);
@@ -462,7 +462,7 @@ void InstrSub::as_string(std::string& out) const noexcept
     memloc_as_string(out, this->_right);
 }
 
-void InstrSub::as_bytecode(ByteCode& out) const noexcept 
+void InstrSub::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
@@ -484,7 +484,7 @@ void InstrSub::as_bytecode(ByteCode& out) const noexcept
     }
 }
 
-void InstrMul::as_string(std::string& out) const noexcept 
+void InstrMul::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "mulsd ");
     memloc_as_string(out, this->_left);
@@ -492,7 +492,7 @@ void InstrMul::as_string(std::string& out) const noexcept
     memloc_as_string(out, this->_right);
 }
 
-void InstrMul::as_bytecode(ByteCode& out) const noexcept 
+void InstrMul::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
@@ -514,7 +514,7 @@ void InstrMul::as_bytecode(ByteCode& out) const noexcept
     }
 }
 
-void InstrDiv::as_string(std::string& out) const noexcept 
+void InstrDiv::as_string(std::string& out) const noexcept
 {
     std::format_to(std::back_inserter(out), "divsd ");
     memloc_as_string(out, this->_left);
@@ -522,7 +522,7 @@ void InstrDiv::as_string(std::string& out) const noexcept
     memloc_as_string(out, this->_right);
 }
 
-void InstrDiv::as_bytecode(ByteCode& out) const noexcept 
+void InstrDiv::as_bytecode(ByteCode& out) const noexcept
 {
     out.push_back(BYTE(0xF2)); /* Prefix */
     out.push_back(BYTE(0x0F));
@@ -553,8 +553,27 @@ void InstrCall::as_string(std::string& out) const noexcept
 
 void InstrCall::as_bytecode(ByteCode& out) const noexcept
 {
-    /* TODO: decide which register to pass the function address to */
-    /* MEMO: On Windows, we need to allocate 40 bytes of shadow space on the stack */
+    /* MEMO: On Windows, we need to allocate 32 bytes of shadow space on the stack */
+    /* mov rax, imm64 */
+    out.push_back(BYTE(0x48));
+    out.push_back(BYTE(0xB8));
+
+    for(uint8_t i = 0; i < 8; i++)
+        out.push_back(BYTE(0x00));
+
+    /* call rax */
+    out.push_back(BYTE(0xFF));
+    out.push_back(BYTE(0xD0));
+}
+
+RelocInfo InstrCall::get_link_info(std::size_t bytecode_start) const noexcept
+{
+    RelocInfo info;
+    info.symbol_name = this->_call_name;
+    info.bytecode_offset = bytecode_start + 2;
+    info.reloc_type = RelocType_Abs64;
+
+    return info;
 }
 
 /* Terminator instructions */
@@ -571,52 +590,52 @@ void InstrRet::as_bytecode(ByteCode& out) const noexcept
 
 X86_64_NAMESPACE_END
 
-InstrPtr X86_64_CodeGenerator::create_mov(MemLocPtr& from, MemLocPtr& to) 
+InstrPtr X86_64_CodeGenerator::create_mov(MemLocPtr& from, MemLocPtr& to)
 {
     return std::make_shared<x86_64::InstrMov>(from, to);
 }
 
-InstrPtr X86_64_CodeGenerator::create_prologue(uint64_t stack_size) 
+InstrPtr X86_64_CodeGenerator::create_prologue(uint64_t stack_size)
 {
     return std::make_shared<x86_64::InstrPrologue>(stack_size);
 }
 
-InstrPtr X86_64_CodeGenerator::create_epilogue(uint64_t stack_size) 
+InstrPtr X86_64_CodeGenerator::create_epilogue(uint64_t stack_size)
 {
     return std::make_shared<x86_64::InstrEpilogue>(stack_size);
 }
 
-InstrPtr X86_64_CodeGenerator::create_neg(MemLocPtr& operand) 
+InstrPtr X86_64_CodeGenerator::create_neg(MemLocPtr& operand)
 {
     return std::make_shared<x86_64::InstrNeg>(operand);
 }
 
-InstrPtr X86_64_CodeGenerator::create_add(MemLocPtr& left, MemLocPtr& right) 
+InstrPtr X86_64_CodeGenerator::create_add(MemLocPtr& left, MemLocPtr& right)
 {
     return std::make_shared<x86_64::InstrAdd>(left, right);
 }
 
-InstrPtr X86_64_CodeGenerator::create_sub(MemLocPtr& left, MemLocPtr& right) 
+InstrPtr X86_64_CodeGenerator::create_sub(MemLocPtr& left, MemLocPtr& right)
 {
     return std::make_shared<x86_64::InstrSub>(left, right);
 }
 
-InstrPtr X86_64_CodeGenerator::create_mul(MemLocPtr& left, MemLocPtr& right) 
+InstrPtr X86_64_CodeGenerator::create_mul(MemLocPtr& left, MemLocPtr& right)
 {
     return std::make_shared<x86_64::InstrMul>(left, right);
 }
 
-InstrPtr X86_64_CodeGenerator::create_div(MemLocPtr& left, MemLocPtr& right) 
+InstrPtr X86_64_CodeGenerator::create_div(MemLocPtr& left, MemLocPtr& right)
 {
     return std::make_shared<x86_64::InstrDiv>(left, right);
 }
 
-InstrPtr X86_64_CodeGenerator::create_call(std::string_view call_name) 
+InstrPtr X86_64_CodeGenerator::create_call(std::string_view call_name)
 {
     return std::make_shared<x86_64::InstrCall>(call_name);
 }
 
-InstrPtr X86_64_CodeGenerator::create_ret() 
+InstrPtr X86_64_CodeGenerator::create_ret()
 {
     return std::make_shared<x86_64::InstrRet>();
 }

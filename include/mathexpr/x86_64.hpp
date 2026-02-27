@@ -57,7 +57,7 @@ static constexpr std::byte REX_R    = BYTE(0x04);  // Extension of Reg field
 static constexpr std::byte REX_X    = BYTE(0x02);  // Extension of Index field (SIB)
 static constexpr std::byte REX_B    = BYTE(0x01);  // Extension of R/M field or base
 
-/* 
+/*
     OPSD common opcodes (just as a reminder)
 
     movs
@@ -77,7 +77,7 @@ static constexpr std::byte REX_B    = BYTE(0x01);  // Extension of R/M field or 
     RET         0xC3               return
 */
 
-/* 
+/*
     ModR/M Byte (binary: mmrrrmmm)
     mod:   2 bits - 00=no disp, 01=disp8, 10=disp32, 11=register
     reg:   3 bits - XMM or GPR (source or opcode extension)
@@ -219,6 +219,10 @@ public:
 
     virtual void as_string(std::string& out) const noexcept override;
     virtual void as_bytecode(ByteCode& out) const noexcept override;
+
+    virtual bool needs_linking() const noexcept override { return true; }
+
+    virtual RelocInfo get_link_info(std::size_t bytecode_start) const noexcept override;
 };
 
 /* Terminator instructions */

@@ -10,6 +10,7 @@
 #include "mathexpr/regalloc.hpp"
 #include "mathexpr/symtable.hpp"
 #include "mathexpr/bytecode.hpp"
+#include "mathexpr/link.hpp"
 
 #include <variant>
 #include <functional>
@@ -31,6 +32,12 @@ public:
 
     /* default estimation, useful to avoid reallocation when emitting bytecode */
     virtual size_t get_bytecode_size_estimate() const noexcept { return 4; }
+
+    /* for instructions that needs linking once the code reaches linking phase (i.e, function calls) */
+    virtual bool needs_linking() const noexcept { return false; }
+
+    /* for instructions that need linking, return linking information */
+    virtual RelocInfo get_link_info(std::size_t bytecode_start) const noexcept { return RelocInfo(); }
 };
 
 using InstrPtr = std::shared_ptr<Instr>;
@@ -70,7 +77,7 @@ public:
 using TargetCodeGeneratorPtr = std::unique_ptr<TargetCodeGenerator>;
 
 /* Main code generator, target agnostic */
-class MATHEXPR_API CodeGenerator 
+class MATHEXPR_API CodeGenerator
 {
 private:
     std::vector<InstrPtr> _instructions;
@@ -86,7 +93,7 @@ public:
                const RegisterAllocator& regalloc,
                SymbolTable& symtable) noexcept;
 
-    std::tuple<bool, ByteCode> as_bytecode() const noexcept;
+    std::tuple<bool, ByteCode> as_bytecode(Relocations& relocs) const noexcept;
     std::tuple<bool, std::string> as_string() const noexcept;
     std::tuple<bool, std::string> as_bytecode_hex_string() const noexcept;
 

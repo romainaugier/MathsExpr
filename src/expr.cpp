@@ -7,6 +7,9 @@
 #include "mathexpr/codegen.hpp"
 #include "mathexpr/regalloc.hpp"
 
+#include <iterator>
+#include <algorithm>
+
 MATHEXPR_NAMESPACE_BEGIN
 
 std::tuple<bool, double> Expr::_evaluate_internal(const double* values) const noexcept
@@ -74,29 +77,21 @@ bool Expr::compile(uint64_t debug_flags) noexcept
     }
 
     if(debug_flags & ExprPrintFlags_PrintAST)
-    {
         ast.print();
-    }
 
     SymbolTable symtable;
 
     symtable.collect(ast);
 
     if(debug_flags & ExprPrintFlags_PrintSymTable)
-    {
         symtable.print();
-    }
 
     /* Variables and literals are stored in order of parsing */
     for(auto [name, _] : symtable.get_variables())
-    {
         this->_variables.insert(name);
-    }
 
     for(auto [_, lit] : symtable.get_literals())
-    {
         this->_literals.push_back(lit.get_value());
-    }
 
     SSA ssa;
 
@@ -108,9 +103,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
     }
 
     if(debug_flags & ExprPrintFlags_PrintSSA)
-    {
         ssa.print();
-    }
 
     RegisterAllocator reg_allocator(platform_abi);
 
@@ -122,9 +115,7 @@ bool Expr::compile(uint64_t debug_flags) noexcept
     }
 
     if(debug_flags & ExprPrintFlags_PrintSSARegisterAlloc)
-    {
         ssa.print();
-    }
 
     CodeGenerator generator(isa, platform_abi);
 
@@ -150,7 +141,9 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         std::cout << "CODEGEN\n" << code << "\n";
     }
 
-    auto [gen_success, bytecode] = generator.as_bytecode();
+    Relocations relocs;
+
+    auto [gen_success, bytecode] = generator.as_bytecode(relocs);
 
     if(!gen_success)
     {
@@ -159,24 +152,36 @@ bool Expr::compile(uint64_t debug_flags) noexcept
         return false;
     }
 
+    if(debug_flags & ExprPrintFlags_PrintCodeGeneratorRelocations)
+    {
+        std::cout << "RELOCATIONS (" << relocs.size() << ")\n";
+        std::cout << "\n";
+    }
+
+    if(!relocate(bytecode, relocs))
+    {
+        log_error("Error during relocation for expression: {}", this->_expr);
+        log_error("Check the log for more information");
+        return false;
+    }
+
     if(debug_flags & ExprPrintFlags_PrintCodeGeneratorByteCodeAsHexCode)
     {
-        auto [hex_success, hexcode] = generator.as_bytecode_hex_string();
+        std::cout << "BYTECODE" << "\n";
 
-        std::cout << "BYTECODE" << "\n" << hexcode << "\n";
+        for(const auto byte : bytecode)
+            std::cout << std::format("{:02x}", static_cast<uint8_t>(byte));
+
+        std::cout << "\n\n";
     }
 
     ExecMem exec_mem(bytecode.size() * sizeof(std::byte));
 
     if(!exec_mem.write(bytecode))
-    {
         return false;
-    }
 
     if(!exec_mem.lock())
-    {
         return false;
-    }
 
     this->_exec_mem = std::move(exec_mem);
 

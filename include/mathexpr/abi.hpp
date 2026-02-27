@@ -10,7 +10,7 @@
 #include "mathexpr/platform.hpp"
 #include "mathexpr/bytecode.hpp"
 
-/* 
+/*
     ABIs
 
     https://www.thejat.in/learn/system-v-amd64-calling-convention
@@ -26,7 +26,7 @@ enum PlatformABIID : uint32_t
     PlatformABIID_LinuxX64,
 };
 
-class MATHEXPR_API PlatformABI 
+class MATHEXPR_API PlatformABI
 {
 public:
     virtual ~PlatformABI() = default;
@@ -43,8 +43,11 @@ public:
     /* base ptr for the variables values is passed as the second parameter */
     virtual RegisterId get_literal_base_ptr() const noexcept = 0;
 
-    /* 
-        Returns the maximum number of registers that can be used simultaneously, used by 
+    /* register used to pass the address of a function when doing a function call */
+    virtual RegisterId get_function_call_ptr() const noexcept = 0;
+
+    /*
+        Returns the maximum number of registers that can be used simultaneously, used by
         the register allocator to know how many registers we can use
     */
     virtual uint64_t get_max_available_gp_registers() const noexcept = 0;
@@ -107,6 +110,9 @@ public:
 
     /* Xmm0-Xmm5 */
     virtual const std::vector<RegisterId>& get_call_args_fp_registers() const noexcept override;
+
+    /* RAX */
+    virtual RegisterId get_function_call_ptr() const noexcept override { return GpRegisters_x86_64_RAX; }
 };
 
 /* Or SysV ABI */
@@ -150,6 +156,9 @@ public:
 
     /* Xmm0-Xmm7 */
     virtual const std::vector<RegisterId>& get_call_args_fp_registers() const noexcept override;
+
+    /* RAX */
+    virtual RegisterId get_function_call_ptr() const noexcept override { return GpRegisters_x86_64_RAX; }
 };
 
 MATHEXPR_NAMESPACE_END

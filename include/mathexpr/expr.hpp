@@ -29,6 +29,7 @@ enum ExprPrintFlags : uint64_t
     ExprPrintFlags_PrintSSARegisterAlloc = 0x20,
     ExprPrintFlags_PrintCodeGeneratorAsString = 0x40,
     ExprPrintFlags_PrintCodeGeneratorByteCodeAsHexCode = 0x80,
+    ExprPrintFlags_PrintCodeGeneratorRelocations = 0x100,
     ExprPrintFlags_PrintAll = UINT64_T_MAX,
 };
 
@@ -56,7 +57,7 @@ public:
     {
         if(sizeof...(Args) != this->_variables.size())
         {
-            log_error("You passed {} arguments but the expression needs {}", 
+            log_error("You passed {} arguments but the expression needs {}",
                       sizeof...(Args),
                       this->_variables.size());
 

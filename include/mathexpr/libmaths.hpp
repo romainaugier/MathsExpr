@@ -210,7 +210,7 @@ struct FunctionEntry {
     size_t arity;
 };
 
-MATHEXPR_API FunctionEntry* get_function_entry(const std::string& name) noexcept;
+MATHEXPR_API const FunctionEntry* get_function_entry(const std::string_view& name) noexcept;
 
 LIBMATHS_NAMESPACE_END
 

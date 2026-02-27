@@ -556,12 +556,12 @@ double4 degrees_d4(const double4 x) noexcept
         arity \
     } }
 
-using FuncTable = std::unordered_map<std::string, 
-                                     FunctionEntry, 
+using FuncTable = std::unordered_map<std::string,
+                                     FunctionEntry,
                                      string_hash,
                                      std::equal_to<>>;
 
-static const FuncTable function_table = {
+static const FuncTable g_function_table = {
     REGISTER_FUNCTION("abs", abs, 1),
     REGISTER_FUNCTION("sqrt", sqrt, 1),
     REGISTER_FUNCTION("cbrt", cbrt, 1),
@@ -600,9 +600,14 @@ static const FuncTable function_table = {
     REGISTER_FUNCTION("degrees", degrees, 1),
 };
 
-FunctionEntry* get_function_entry(const std::string& name) noexcept
+const FunctionEntry* get_function_entry(const std::string_view& name) noexcept
 {
-    return nullptr;
+    auto entry = g_function_table.find(name);
+
+    if(entry == g_function_table.end())
+        return nullptr;
+
+    return std::addressof(entry->second);
 }
 
 LIBMATHS_NAMESPACE_END
