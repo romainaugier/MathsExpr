@@ -31,8 +31,8 @@ bool relocate(ByteCode& bytecode, const Relocations& relocations) noexcept
 
         log_debug("Relocating symbol: \"{}\" (0x{:016x})", relocation.symbol_name, addr);
 
-        for(std::int32_t i = 0; i < 8; i++)
-            bytecode[relocation.bytecode_offset + i] = BYTE(addr >> (64 - ((i + 1) * 8)));
+        for(int32_t i = 0; i < 8; i++)
+            bytecode[relocation.bytecode_offset + i] = BYTE(addr >> (i * 8));
     }
 
     return true;

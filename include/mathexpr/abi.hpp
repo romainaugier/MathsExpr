@@ -10,6 +10,8 @@
 #include "mathexpr/platform.hpp"
 #include "mathexpr/bytecode.hpp"
 
+#include <memory>
+
 /*
     ABIs
 
@@ -64,6 +66,8 @@ public:
     /* Returns the register order for arguments placement before a function call */
     virtual const std::vector<RegisterId>& get_call_args_gp_registers() const noexcept = 0;
     virtual const std::vector<RegisterId>& get_call_args_fp_registers() const noexcept = 0;
+
+    virtual uint64_t get_fcall_shadow_space() const noexcept { return 0; }
 };
 
 using PlatformABIPtr = std::shared_ptr<PlatformABI>;
@@ -113,6 +117,9 @@ public:
 
     /* RAX */
     virtual RegisterId get_function_call_ptr() const noexcept override { return GpRegisters_x86_64_RAX; }
+
+    /* Windows function calls need 32 bytes of shadow space on the stack to spill arguments */
+    virtual uint64_t get_fcall_shadow_space() const noexcept override { return 32; }
 };
 
 /* Or SysV ABI */

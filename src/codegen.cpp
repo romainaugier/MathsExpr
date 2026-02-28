@@ -37,6 +37,16 @@ bool CodeGenerator::build(const SSA& ssa,
     this->_instructions.clear();
 
     uint64_t epilogue_stack_size = 0;
+    uint64_t shadow_space_stack = 0;
+
+    for(auto stmt : ssa.get_statements())
+    {
+        if(stmt->type_id() == SSAStmtTypeId_FuncOp)
+        {
+            shadow_space_stack += this->_platform_abi->get_fcall_shadow_space();
+            break;
+        }
+    }
 
     for(auto stmt : ssa.get_statements())
     {
@@ -51,7 +61,7 @@ bool CodeGenerator::build(const SSA& ssa,
                 if(loc->type_id() == MemLocTypeId_Register)
                 {
                     MemLocPtr mem = std::make_shared<Memory>(this->_platform_abi->get_variable_base_ptr(),
-                                                            symtable.get_variable_offset(variable->get_name()));
+                                                             symtable.get_variable_offset(variable->get_name()));
 
                     this->_instructions.push_back(this->_target_generator->create_mov(mem, loc));
                 }
@@ -152,10 +162,10 @@ bool CodeGenerator::build(const SSA& ssa,
                               stmt->type_id());
                 }
 
-                epilogue_stack_size = allocstackop->get_stack_size();
+                epilogue_stack_size += allocstackop->get_stack_size();
 
                 this->_instructions.insert(this->_instructions.begin(),
-                                           this->_target_generator->create_prologue(allocstackop->get_stack_size()));
+                                           this->_target_generator->create_prologue(allocstackop->get_stack_size() + shadow_space_stack));
 
                 break;
             }

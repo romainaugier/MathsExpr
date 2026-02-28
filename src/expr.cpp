@@ -14,6 +14,8 @@ MATHEXPR_NAMESPACE_BEGIN
 
 std::tuple<bool, double> Expr::_evaluate_internal(const double* values) const noexcept
 {
+    MATHEXPR_ASSERT(values != nullptr, "values is NULL");
+
     if(!this->_exec_mem.is_locked())
     {
         log_error("ExecMem is not locked nor ready, compile expr before evaluating it");

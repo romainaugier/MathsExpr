@@ -66,6 +66,9 @@ log_error()
 
 log_info "Building MathExpr"
 
+# options for easier debugging using address sanitizer
+export ASAN_OPTIONS=abort_on_error=1:disable_coredump=0
+
 for arg in "$@"
 do
     parse_args "$arg"

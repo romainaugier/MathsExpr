@@ -1,20 +1,20 @@
-# SPDX-License-Identifier: BSD-3-Clause 
-# Copyright (c) 2025 - Present Romain Augier 
-# All rights reserved. 
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025 - Present Romain Augier
+# All rights reserved.
 
 function(set_target_options target_name)
     if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
         set(ROMANO_CLANG 1)
         set(CMAKE_C_FLAGS "-Wall -pedantic-errors")
 
-        target_compile_options(${target_name} PRIVATE $<$<CONFIG:Debug,RelWithDebInfo>:-fsanitize=leak -fsanitize=address>)
+        target_compile_options(${target_name} PRIVATE $<$<CONFIG:Debug,RelWithDebInfo>:-fsanitize=leak -fsanitize=address -fno-omit-frame-pointer>)
         target_compile_options(${target_name} PRIVATE $<$<CONFIG:Release,RelWithDebInfo>:-O3> -mavx2 -mfma)
 
         target_link_options(${target_name} PRIVATE $<$<CONFIG:Debug,RelWithDebInfo>:-fsanitize=address>)
     elseif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
         set(ROMANO_GCC 1)
 
-        set(COMPILE_OPTIONS -D_FORTIFY_SOURCES=2 -pipe -Wall -pedantic-errors $<$<CONFIG:Debug,RelWithDebInfo>:-fsanitize=leak -fsanitize=address> $<$<CONFIG:Release,RelWithDebInfo>:-O3 -ftree-vectorizer-verbose=2> -mveclibabi=svml -mavx2 -mfma)
+        set(COMPILE_OPTIONS -D_FORTIFY_SOURCES=2 -pipe -Wall -pedantic-errors $<$<CONFIG:Debug,RelWithDebInfo>:-fsanitize=leak -fsanitize=address -fno-omit-frame-pointer> $<$<CONFIG:Release,RelWithDebInfo>:-O3 -ftree-vectorizer-verbose=2> -mveclibabi=svml -mavx2 -mfma)
 
         target_compile_options(${target_name} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${COMPILE_OPTIONS}>)
 
