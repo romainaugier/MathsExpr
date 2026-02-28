@@ -374,13 +374,9 @@ void InstrPrologue::as_bytecode(ByteCode& out) const noexcept
     out.push_back(x86_64::REX_BASE | x86_64::REX_W); /* REX.W prefix */
 
     if(this->_stack_size > 127)
-    {
         out.push_back(BYTE(0x81)); /* sub with single-byte immediate (imm32) */
-    }
     else
-    {
         out.push_back(BYTE(0x83)); /* sub with single-byte immediate (imm8) */
-    }
 
     out.push_back(BYTE(0xEC)); /* rsp */
 

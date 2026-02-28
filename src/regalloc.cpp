@@ -24,13 +24,13 @@ MATHEXPR_NAMESPACE_BEGIN
     For Windows x86_64, we can use xmm0-xmm5
 */
 
-/* 
+/*
     Simple helper structure. For now, since we won't allocate on more than 64 registers, we can
-    assume that a 64 bits integer will be sufficient. The structure can be adapted in the future 
+    assume that a 64 bits integer will be sufficient. The structure can be adapted in the future
     to hold more registers
 */
 
-class BitVector 
+class BitVector
 {
     static constexpr size_t SIZE = 1;
     static constexpr size_t BIT_SIZE = 64;
@@ -45,7 +45,7 @@ private:
     }
 
 public:
-    BitVector() 
+    BitVector()
     {
         this->reset();
     }
@@ -83,7 +83,7 @@ public:
         return (_data[arr_index] >> bit_index) & 1;
     }
 
-    void set(size_t index) 
+    void set(size_t index)
     {
         MATHEXPR_ASSERT(index < (SIZE * BIT_SIZE), "Out-of-bounds access");
 
@@ -205,7 +205,7 @@ const MemLocPtr RegisterAllocator::get_reusable_register(const SSAStmtPtr& state
 /* Optimization passes for better register allocation */
 
 /*
-    This pass swaps operands of commutative binary ops if the right operand can be loaded from the 
+    This pass swaps operands of commutative binary ops if the right operand can be loaded from the
     stack or constant-memory (i.e a literal, a variable, a spilled temporary)
 */
 bool RegisterAllocator::prepass_commutative_operand_swap(SSA& ssa) noexcept
@@ -239,7 +239,7 @@ bool RegisterAllocator::prepass_commutative_operand_swap(SSA& ssa) noexcept
                     binop->swap_operands();
                 }
 
-                if(left->type_id() == SSAStmtTypeId_Variable && 
+                if(left->type_id() == SSAStmtTypeId_Variable &&
                    right->type_id() != SSAStmtTypeId_Variable)
                 {
                     binop->swap_operands();
@@ -318,12 +318,12 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
         std::vector<SSAStmtPtr>& statements = ssa.get_statements();
 
-        /* 
+        /*
             Allocation of constrained ops: - function calls return in xmm0
                                            - expr return value in xmm0
                                            - function args must go in xmm[i]
                                            - allocate the memory address of each literal
-        
+
         */
 
         /* We only deal with fp values (double or float) so we only care about this rv */
@@ -464,7 +464,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
                     if(funcop == nullptr)
                     {
-                        log_error("Internal error during register allocation. Expected func op, got: {}", 
+                        log_error("Internal error during register allocation. Expected func op, got: {}",
                                 stmt->type_id());
                         return false;
                     }
@@ -500,7 +500,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
         });
 
         std::unordered_set<SSAStmtPtr> to_spill;
-        uint64_t stack_offset = 0;
+        uint64_t stack_offset = this->_platform_abi->get_stack_base_offset();
 
         std::unordered_set<SSAStmtPtr> to_load;
 
@@ -509,7 +509,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
             auto& stmt = statements_sorted[i];
 
             /* Remove expired intervals from the actives, freeing registers */
-            auto remove_result = std::remove_if(actives.begin(), 
+            auto remove_result = std::remove_if(actives.begin(),
                                                 actives.end(),
                                                 [&](const Active& active) -> bool {
                 return active.first->get_live_range().end < stmt->get_live_range().start;
@@ -517,9 +517,9 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
             actives.erase(remove_result, actives.end());
 
-            /*  
-                Check if we have to insert a load. Since we let all literals and variables in memory, 
-                if we need a register for one, load it here 
+            /*
+                Check if we have to insert a load. Since we let all literals and variables in memory,
+                if we need a register for one, load it here
                 TODO: maybe check function ops too
             */
             switch(stmt->type_id())
@@ -530,12 +530,12 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
                     if(unop == nullptr)
                     {
-                        log_error("Internal error during register allocation. Expected unop, got: {}", 
+                        log_error("Internal error during register allocation. Expected unop, got: {}",
                                   stmt->type_id());
                         return false;
                     }
 
-                    if(unop->get_operand()->type_id() == SSAStmtTypeId_Literal || 
+                    if(unop->get_operand()->type_id() == SSAStmtTypeId_Literal ||
                        unop->get_operand()->type_id() == SSAStmtTypeId_Variable)
                     {
                         to_load.insert(unop->get_operand());
@@ -599,8 +599,8 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
                 needed_stack_size = std::max(needed_stack_size, stack_offset);
 
-                auto remove_result = std::remove_if(actives.begin(), 
-                                                    actives.end(), 
+                auto remove_result = std::remove_if(actives.begin(),
+                                                    actives.end(),
                                                     [&](const Active& active) -> bool {
                     return active.first == spill->get_operand();
                 });
@@ -736,12 +736,12 @@ bool RegisterAllocator::allocate(SSA& ssa,
                         binop->set_left(load);
                         new_statements.emplace_back(load);
 
-                        log_debug("Inserted load op for ssa var: {}{}", 
+                        log_debug("Inserted load op for ssa var: {}{}",
                                   VERSION_CHAR,
                                   left->get_version());
                     }
 
-                    /* 
+                    /*
                         We don't need to load the right operand because it can be used in
                         immediate mode
                         We take care of that below, once all registers have been allocated
@@ -769,7 +769,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
                             funcop->get_arguments()[i] = load;
                             new_statements.emplace_back(load);
 
-                            log_debug("Inserted load op for ssa var: {}{}", 
+                            log_debug("Inserted load op for ssa var: {}{}",
                                       VERSION_CHAR,
                                       arg->get_version());
                         }
@@ -789,7 +789,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
 
                 spilled[stmt] = spill;
 
-                log_debug("Inserted spill op for ssa var: {}{}", 
+                log_debug("Inserted spill op for ssa var: {}{}",
                           VERSION_CHAR,
                           stmt->get_version());
             }
@@ -798,7 +798,7 @@ bool RegisterAllocator::allocate(SSA& ssa,
         ssa.get_statements() = std::move(new_statements);
     }
 
-    log_debug("Allocated registers in {} pass{} (max pressure: {})", 
+    log_debug("Allocated registers in {} pass{} (max pressure: {})",
               num_passes,
               num_passes > 1 ? "es" : "",
               max_pressure + 1);

@@ -67,7 +67,11 @@ public:
     virtual const std::vector<RegisterId>& get_call_args_gp_registers() const noexcept = 0;
     virtual const std::vector<RegisterId>& get_call_args_fp_registers() const noexcept = 0;
 
+    /* Returns the size of the stack shadow space to allocate for function calls */
     virtual uint64_t get_fcall_shadow_space() const noexcept { return 0; }
+
+    /* Returns the offset of the stack base where we can start storing spills */
+    virtual uint64_t get_stack_base_offset() const noexcept { return 0; }
 };
 
 using PlatformABIPtr = std::shared_ptr<PlatformABI>;
@@ -120,6 +124,9 @@ public:
 
     /* Windows function calls need 32 bytes of shadow space on the stack to spill arguments */
     virtual uint64_t get_fcall_shadow_space() const noexcept override { return 32; }
+
+    /* Windows abi needs 8 bytes to store rbp */
+    virtual uint64_t get_stack_base_offset() const noexcept override { return 8; }
 };
 
 /* Or SysV ABI */
@@ -166,6 +173,9 @@ public:
 
     /* RAX */
     virtual RegisterId get_function_call_ptr() const noexcept override { return GpRegisters_x86_64_RAX; }
+
+    /* Same as Windows, SysV abi needs 8 bytes to store rbp */
+    virtual uint64_t get_stack_base_offset() const noexcept override { return 8; }
 };
 
 MATHEXPR_NAMESPACE_END
