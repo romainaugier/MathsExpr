@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 
     mathexpr::Expr expr(expression);
 
-    if(!expr.compile(mathexpr::ExprPrintFlags_PrintAll))
+    if(!expr.compile(mathexpr::ExprFlags_PrintAll))
     {
         mathexpr::log_error("Error while compiling expression");
         return 1;

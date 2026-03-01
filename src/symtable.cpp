@@ -17,9 +17,7 @@ void SymbolTable::print() const noexcept
     std::format_to(out, "VARIABLES ({}):\n", this->_variables.size());
 
     for(const auto& [name, variable] : this->_variables)
-    {
         std::format_to(out, "    - {} (offset: {})\n", name, variable.get_id() * VALUE_OFFSET);
-    }
 
     std::format_to(out, "LITERALS ({}):\n", this->_literals.size());
 
@@ -35,9 +33,7 @@ void SymbolTable::print() const noexcept
     std::format_to(out, "FUNCTIONS ({}):\n", this->_functions.size());
 
     for(const auto& [name, nodes] : this->_functions)
-    {
         std::format_to(out, "    - {} ({} calls)\n", name, nodes.size());
-    }
 
     std::format_to(out, "\n");
 }
@@ -55,19 +51,13 @@ void SymbolTable::collect(const AST& ast) noexcept
 
     auto pre_order_trav = [&](auto&& self, const ASTNode* current) -> void {
         if(current == nullptr)
-        {
             return;
-        }
 
         auto children = current->get_children();
 
         if(children.has_value())
-        {
             for(auto& child : children.value())
-            {
                 self(self, child);
-            }
-        }
 
         if(auto current_variable = node_cast<ASTNodeVariable>(current))
         {
@@ -100,9 +90,7 @@ size_t SymbolTable::get_variable_offset(std::string_view variable_name) const no
     auto it = this->_variables.find(variable_name);
 
     if(it == this->_variables.end())
-    {
         return INVALID_OFFSET;
-    }
 
     return it->second.get_offset();
 }
@@ -112,9 +100,7 @@ size_t SymbolTable::get_literal_offset(std::string_view literal_name) const noex
     auto it = this->_literals.find(literal_name);
 
     if(it == this->_literals.end())
-    {
         return INVALID_OFFSET;
-    }
 
     return it->second.get_offset();
 }

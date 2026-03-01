@@ -13,6 +13,9 @@
 
 MATHEXPR_NAMESPACE_BEGIN
 
+using float4 = __m128;
+using float8 = __m256;
+
 using double2 = __m128d;
 using double4 = __m256d;
 

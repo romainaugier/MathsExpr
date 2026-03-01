@@ -9,7 +9,6 @@
 
 #if defined(_MSC_VER)
 #define MATHEXPR_MSVC
-#pragma warning(disable : 4711) /* function selected for automatic inline expansion */
 #define _SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
 #elif defined(__GNUC__)
@@ -37,9 +36,9 @@
 #define MATHEXPR_VERSION_REVISION 0
 #endif /* !defined(MATHEXPR_VERSION_REVISION) */
 
-#define MATHEXPR_VERSION_STR                                                                      \
-    MATHEXPR_STRIFY_MACRO(MATHEXPR_VERSION_MAJOR)                                                \
-    "." MATHEXPR_STRIFY_MACRO(MATHEXPR_VERSION_MINOR) "." MATHEXPR_STRIFY_MACRO(                \
+#define MATHEXPR_VERSION_STR                                                                       \
+    MATHEXPR_STRIFY_MACRO(MATHEXPR_VERSION_MAJOR)                                                  \
+    "." MATHEXPR_STRIFY_MACRO(MATHEXPR_VERSION_MINOR) "." MATHEXPR_STRIFY_MACRO(                   \
         MATHEXPR_VERSION_PATCH) "." MATHEXPR_STRIFY_MACRO(MATHEXPR_VERSION_REVISION)
 
 #include <cassert>
@@ -122,7 +121,7 @@
 #endif /* defined(MATHEXPR_BUILD_SHARED) */
 
 #if defined __cplusplus
-#define MATHEXPR_CPP_ENTER                                                                        \
+#define MATHEXPR_CPP_ENTER                                                                         \
     extern "C"                                                                                     \
     {
 #define MATHEXPR_CPP_END }
@@ -144,7 +143,7 @@
 #define CONCAT_(prefix, suffix) prefix##suffix
 #define CONCAT(prefix, suffix) CONCAT_(prefix, suffix)
 
-#define MATHEXPR_ASSERT(expr, message)                                                            \
+#define MATHEXPR_ASSERT(expr, message)                                                             \
     if(!(expr))                                                                                    \
     {                                                                                              \
         std::fprintf(stderr,                                                                       \
@@ -156,19 +155,13 @@
     }
 
 #define MATHEXPR_STATIC_ASSERT(expr, message) static_assert(expr, message)
-#define MATHEXPR_NOT_IMPLEMENTED                                                                  \
+#define MATHEXPR_NOT_IMPLEMENTED                                                                   \
     std::fprintf(stderr,                                                                           \
                  "Called function %s that is not implemented (%s:%d)",                             \
-                 MATHEXPR_FUNCTION,                                                               \
+                 MATHEXPR_FUNCTION,                                                                \
                  __FILE__,                                                                         \
                  __LINE__);                                                                        \
     std::exit(1)
-
-#define MATHEXPR_NON_COPYABLE(__class__)                                                          \
-    __class__(const __class__&) = delete;                                                          \
-    __class__(__class__&&) = delete;                                                               \
-    const __class__& operator=(const __class__&) = delete;                                         \
-    void operator=(__class__&&) = delete;
 
 #if defined(MATHEXPR_MSVC)
 #define MATHEXPR_PACKED_STRUCT(__struct__) __pragma(pack(push, 1)) __struct__ __pragma(pack(pop))
@@ -192,12 +185,15 @@
 #define MATHEXPR_DEBUG 0
 #endif /* defined(DEBUG_BUILD) */
 
-#define MATHEXPR_NAMESPACE_BEGIN                                                                  \
-    namespace mathexpr\
-    {
+// clang-format off
+
+#define MATHEXPR_NAMESPACE_BEGIN namespace mathexpr {
 #define MATHEXPR_NAMESPACE_END }
 
-#define MATHEXPR_ATEXIT_REGISTER(func, do_exit)                                                   \
+#define DETAIL_NAMESPACE_BEGIN namespace detail {
+#define DETAIL_NAMESPACE_END }
+
+#define MATHEXPR_ATEXIT_REGISTER(func, do_exit)                                                    \
     int res_##func = std::atexit(func);                                                            \
     if(res_##func != 0)                                                                            \
     {                                                                                              \
@@ -205,5 +201,17 @@
         if(do_exit)                                                                                \
             std::exit(1);                                                                          \
     }
+
+// clang-format on
+
+MATHEXPR_NAMESPACE_BEGIN
+
+enum Precision : uint8_t
+{
+    F32,
+    F64,
+};
+
+MATHEXPR_NAMESPACE_END
 
 #endif /* !defined(__MATHEXPR) */
